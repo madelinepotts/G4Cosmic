@@ -5,6 +5,7 @@
 #include "globals.hh"
 #include <memory>
 #include <string>
+#include <vector>
 
 class CRYGenerator;
 class CRYSetup;
@@ -30,7 +31,9 @@ private:
     void SetSource(const G4String& source);
     void SetCRYDate(const G4String& date);
     void SetCRYAcceptanceMode(const G4String& mode);
+    void SetCRYAcceptanceVolume(const G4String& logicalVolumeName);
     bool AcceptCRYPrimary(const G4ThreeVector& position, const G4ThreeVector& direction) const;
+    void RefreshCRYAcceptanceVolumes() const;
     void SetSampleParticle(const G4String& particle);
     std::string BuildCRYSetupText() const;
 
@@ -73,4 +76,16 @@ private:
     G4double zoffset_ = 0.0;
     G4int cryVerbose_ = 1;
     G4String cryAcceptanceMode_ = "all";
+    G4String cryAcceptanceVolume_ = "";
+    G4int cryMaxAcceptanceTrials_ = 10000;
+
+    struct AcceptanceBox {
+        G4String physicalVolumeName;
+        G4String logicalVolumeName;
+        G4ThreeVector min;
+        G4ThreeVector max;
+    };
+
+    mutable G4String cachedAcceptanceVolume_;
+    mutable std::vector<AcceptanceBox> acceptanceBoxes_;
 };

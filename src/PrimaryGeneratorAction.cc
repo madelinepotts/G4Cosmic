@@ -1,7 +1,6 @@
 #include "PrimaryGeneratorAction.hh"
 
 #include "PrimaryRecord.hh"
-#include "DetectorGeometryGenerated.hh"
 #include "RunAction.hh"
 
 #include "CRYGenerator.h"
@@ -10,6 +9,11 @@
 
 #include "G4Event.hh"
 #include "G4GenericMessenger.hh"
+#include "G4LogicalVolume.hh"
+#include "G4RotationMatrix.hh"
+#include "G4TransportationManager.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4VSolid.hh"
 #include "G4ParticleDefinition.hh"
 #include "G4ParticleGun.hh"
 #include "G4ParticleTable.hh"
@@ -26,6 +30,8 @@
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
+#include <array>
+#include <functional>
 #include <vector>
 
 #ifndef G4COSMIC_CRY_DATA_DIR
@@ -107,6 +113,83 @@ bool RayIntersectsBox(const G4ThreeVector& origin,
     return tMax >= 0.0;
 }
 
+bool WildcardMatches(const std::string& pattern, const std::string& text)
+{
+    // Simple glob matcher for logical-volume names.  '*' matches any number
+    // of characters and '?' matches one character.  If the pattern contains
+    // no wildcard, this is an exact match.
+    std::size_t p = 0;
+    std::size_t t = 0;
+    std::size_t star = std::string::npos;
+    std::size_t match = 0;
+
+    while (t < text.size()) {
+        if (p < pattern.size() &&
+            (pattern[p] == '?' || pattern[p] == text[t])) {
+            ++p;
+            ++t;
+        }
+        else if (p < pattern.size() && pattern[p] == '*') {
+            star = p++;
+            match = t;
+        }
+        else if (star != std::string::npos) {
+            p = star + 1;
+            t = ++match;
+        }
+        else {
+            return false;
+        }
+    }
+
+    while (p < pattern.size() && pattern[p] == '*') {
+        ++p;
+    }
+
+    return p == pattern.size();
+}
+
+void SolidWorldBoundingBox(const G4VSolid* solid,
+                           const G4RotationMatrix& localToWorldRotation,
+                           const G4ThreeVector& localToWorldTranslation,
+                           G4ThreeVector& worldMin,
+                           G4ThreeVector& worldMax)
+{
+    G4ThreeVector localMin;
+    G4ThreeVector localMax;
+    solid->BoundingLimits(localMin, localMax);
+
+    const std::array<G4ThreeVector, 8> corners = {{
+        {localMin.x(), localMin.y(), localMin.z()},
+        {localMin.x(), localMin.y(), localMax.z()},
+        {localMin.x(), localMax.y(), localMin.z()},
+        {localMin.x(), localMax.y(), localMax.z()},
+        {localMax.x(), localMin.y(), localMin.z()},
+        {localMax.x(), localMin.y(), localMax.z()},
+        {localMax.x(), localMax.y(), localMin.z()},
+        {localMax.x(), localMax.y(), localMax.z()},
+    }};
+
+    bool first = true;
+    for (const auto& corner : corners) {
+        const G4ThreeVector world =
+            localToWorldRotation * corner + localToWorldTranslation;
+
+        if (first) {
+            worldMin = world;
+            worldMax = world;
+            first = false;
+        } else {
+            worldMin.setX(std::min(worldMin.x(), world.x()));
+            worldMin.setY(std::min(worldMin.y(), world.y()));
+            worldMin.setZ(std::min(worldMin.z(), world.z()));
+            worldMax.setX(std::max(worldMax.x(), world.x()));
+            worldMax.setY(std::max(worldMax.y(), world.y()));
+            worldMax.setZ(std::max(worldMax.z(), world.z()));
+        }
+    }
+}
+
 } // namespace
 
 
@@ -177,7 +260,11 @@ void PrimaryGeneratorAction::ConfigureMessenger()
     cryMessenger_->DeclareProperty("zoffset", zoffset_, "z offset in metres.");
     cryMessenger_->DeclareProperty("verbose", cryVerbose_, "Per-particle diagnostics (0/1).");
     cryMessenger_->DeclareMethod("acceptanceMode", &PrimaryGeneratorAction::SetCRYAcceptanceMode,
-                                 "CRY geometric acceptance: all, rack, or hodoscope.");
+                                 "CRY geometric acceptance: all or volume.");
+    cryMessenger_->DeclareMethod("acceptanceVolume", &PrimaryGeneratorAction::SetCRYAcceptanceVolume,
+                                 "Logical-volume name or wildcard used when acceptanceMode is volume.");
+    cryMessenger_->DeclareProperty("maxAcceptanceTrials", cryMaxAcceptanceTrials_,
+                                   "Maximum CRY showers to redraw while satisfying volume acceptance.");
     cryMessenger_->DeclareMethod("apply", &PrimaryGeneratorAction::ApplyCRYConfiguration,
                                  "Rebuild CRY using the current settings.");
 
@@ -232,8 +319,8 @@ void PrimaryGeneratorAction::SetCRYDate(const G4String& date)
 
 void PrimaryGeneratorAction::SetCRYAcceptanceMode(const G4String& mode)
 {
-    if (mode != "all" && mode != "rack" && mode != "hodoscope") {
-        G4cout << "G4Cosmic: cry/acceptanceMode must be 'all', 'rack', or 'hodoscope'."
+    if (mode != "all" && mode != "volume") {
+        G4cout << "G4Cosmic: cry/acceptanceMode must be 'all' or 'volume'."
                << G4endl;
         return;
     }
@@ -241,37 +328,129 @@ void PrimaryGeneratorAction::SetCRYAcceptanceMode(const G4String& mode)
 }
 
 
+void PrimaryGeneratorAction::SetCRYAcceptanceVolume(
+    const G4String& logicalVolumeName)
+{
+    cryAcceptanceVolume_ = logicalVolumeName;
+    cachedAcceptanceVolume_ = "";
+    acceptanceBoxes_.clear();
+}
+
+
+void PrimaryGeneratorAction::RefreshCRYAcceptanceVolumes() const
+{
+    if (cryAcceptanceMode_ != "volume") {
+        return;
+    }
+
+    if (cryAcceptanceVolume_.empty()) {
+        throw std::runtime_error(
+            "CRY acceptanceMode is 'volume', but no /g4cosmic/cry/acceptanceVolume was provided.");
+    }
+
+    if (cachedAcceptanceVolume_ == cryAcceptanceVolume_ &&
+        !acceptanceBoxes_.empty()) {
+        return;
+    }
+
+    acceptanceBoxes_.clear();
+    cachedAcceptanceVolume_ = cryAcceptanceVolume_;
+
+    auto* navigator =
+        G4TransportationManager::GetTransportationManager()->GetNavigatorForTracking();
+    auto* world = navigator ? navigator->GetWorldVolume() : nullptr;
+
+    if (world == nullptr) {
+        throw std::runtime_error(
+            "Unable to resolve Geant4 world volume for CRY acceptance lookup. "
+            "Make sure /run/initialize has been called before /run/beamOn.");
+    }
+
+    const std::string pattern = cryAcceptanceVolume_;
+
+    std::function<void(const G4VPhysicalVolume*,
+                       const G4RotationMatrix&,
+                       const G4ThreeVector&)> visit;
+
+    visit = [&](const G4VPhysicalVolume* physicalVolume,
+                const G4RotationMatrix& localToWorldRotation,
+                const G4ThreeVector& localToWorldTranslation) {
+        if (physicalVolume == nullptr) {
+            return;
+        }
+
+        const auto* logicalVolume = physicalVolume->GetLogicalVolume();
+        if (logicalVolume == nullptr) {
+            return;
+        }
+
+        if (WildcardMatches(pattern, logicalVolume->GetName())) {
+            const auto* solid = logicalVolume->GetSolid();
+            if (solid != nullptr) {
+                AcceptanceBox box;
+                box.physicalVolumeName = physicalVolume->GetName();
+                box.logicalVolumeName = logicalVolume->GetName();
+                SolidWorldBoundingBox(
+                    solid,
+                    localToWorldRotation,
+                    localToWorldTranslation,
+                    box.min,
+                    box.max);
+                acceptanceBoxes_.push_back(box);
+            }
+        }
+
+        const auto daughterCount = logicalVolume->GetNoDaughters();
+        for (G4int i = 0; i < daughterCount; ++i) {
+            const auto* daughter = logicalVolume->GetDaughter(i);
+            if (daughter == nullptr) {
+                continue;
+            }
+
+            G4RotationMatrix daughterRotation = localToWorldRotation;
+            if (const auto* objectRotation = daughter->GetObjectRotation()) {
+                daughterRotation *= *objectRotation;
+            }
+
+            const G4ThreeVector daughterTranslation =
+                localToWorldRotation * daughter->GetObjectTranslation() +
+                localToWorldTranslation;
+
+            visit(daughter, daughterRotation, daughterTranslation);
+        }
+    };
+
+    visit(world, G4RotationMatrix(), G4ThreeVector());
+
+    if (acceptanceBoxes_.empty()) {
+        throw std::runtime_error(
+            "No physical placements were found for CRY acceptance logical volume pattern '" +
+            std::string(cryAcceptanceVolume_) +
+            "'. Use an existing G4LogicalVolume name, or a wildcard such as '*ScintillatorLV_*'.");
+    }
+
+    G4cout << "G4Cosmic: CRY acceptance uses "
+           << acceptanceBoxes_.size()
+           << " physical placement(s) matching logical volume pattern '"
+           << cryAcceptanceVolume_ << "'." << G4endl;
+}
+
+
 bool PrimaryGeneratorAction::AcceptCRYPrimary(
     const G4ThreeVector& position, const G4ThreeVector& direction) const
 {
-    using namespace WarpTrackGeometry;
-
-    if (cryAcceptanceMode_ == "all") return true;
-
-    const G4double halfWidth = 0.5 * widthMM * mm;
-    const G4double halfDepth = 0.5 * depthMM * mm;
-
-    if (cryAcceptanceMode_ == "rack") {
-        // Rack acceptance means the forward ray intersects the detector/rack
-        // footprint somewhere between z=0 and the CRY generation plane.
-        return RayIntersectsBox(
-            position, direction,
-            G4ThreeVector(-halfWidth, -halfDepth, 0.0),
-            G4ThreeVector( halfWidth,  halfDepth, generationZ_));
+    if (cryAcceptanceMode_ == "all") {
+        return true;
     }
 
-    // Hodoscope acceptance is stricter: the forward ray must cross the
-    // nominal envelope of at least one configured hodoscope.
-    const G4double halfH = 0.5 * hodoscopeHeightMM * mm;
-    for (const auto& hodoscope : hodoscopes) {
-        const G4double centerZ = hodoscope.rackU * rackUnitMM * mm;
-        if (RayIntersectsBox(
-                position, direction,
-                G4ThreeVector(-halfWidth, -halfDepth, centerZ - halfH),
-                G4ThreeVector( halfWidth,  halfDepth, centerZ + halfH))) {
+    RefreshCRYAcceptanceVolumes();
+
+    for (const auto& box : acceptanceBoxes_) {
+        if (RayIntersectsBox(position, direction, box.min, box.max)) {
             return true;
         }
     }
+
     return false;
 }
 
@@ -309,6 +488,12 @@ void PrimaryGeneratorAction::ApplyCRYConfiguration()
         G4cout << "G4Cosmic: invalid CRY particle-count limits." << G4endl;
         return;
     }
+    if (cryMaxAcceptanceTrials_ <= 0) {
+        G4cout << "G4Cosmic: cry/maxAcceptanceTrials must be > 0." << G4endl;
+        return;
+    }
+    cachedAcceptanceVolume_ = "";
+    acceptanceBoxes_.clear();
     InitializeCRY();
 }
 
@@ -339,6 +524,10 @@ void PrimaryGeneratorAction::InitializeCRY()
            << " particle range: " << nParticlesMin_ << ".." << nParticlesMax_ << G4endl
            << " Generation Z: " << generationZ_ / m << " m" << G4endl
            << " acceptanceMode: " << cryAcceptanceMode_ << G4endl
+           << " acceptanceVolume: "
+           << (cryAcceptanceVolume_.empty() ? G4String("<unset>") : cryAcceptanceVolume_)
+           << G4endl
+           << " maxAcceptanceTrials: " << cryMaxAcceptanceTrials_ << G4endl
            << "========================================" << G4endl;
 }
 
@@ -461,9 +650,13 @@ void PrimaryGeneratorAction::GenerateCRYEvent(
     auto* particleTable =
         G4ParticleTable::GetParticleTable();
 
-    // Filtered modes are enrichment modes: redraw whole CRY showers until
-    // at least one valid primary intersects the selected acceptance volume.
+    // Volume acceptance is an enrichment mode: redraw whole CRY showers until
+    // at least one valid primary intersects the selected logical-volume target.
     // "all" deliberately preserves the original CRY behavior.
+    if (cryAcceptanceMode_ == "volume") {
+        RefreshCRYAcceptanceVolumes();
+    }
+
     std::size_t cryTrials = 0;
 
     while (true) {
@@ -518,6 +711,15 @@ void PrimaryGeneratorAction::GenerateCRYEvent(
             delete cryParticle;
         }
         particles.clear();
+
+        if (cryTrials >= static_cast<std::size_t>(cryMaxAcceptanceTrials_)) {
+            throw std::runtime_error(
+                "CRY acceptance failed after " +
+                std::to_string(cryMaxAcceptanceTrials_) +
+                " trials for logical-volume pattern '" +
+                std::string(cryAcceptanceVolume_) +
+                "'. Increase /g4cosmic/cry/maxAcceptanceTrials, increase the CRY subbox, or choose a larger acceptance volume.");
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -693,10 +895,16 @@ void PrimaryGeneratorAction::GenerateCRYEvent(
         // not inspect Geant4 interactions or detector response, so it cannot
         // leak simulation outcome information into generation.
         if (!AcceptCRYPrimary(position, direction)) {
-            if (cryVerbose_) G4cout
-                << "     STATUS: REJECTED - outside "
-                << cryAcceptanceMode_ << " acceptance"
-                << G4endl << G4endl;
+            if (cryVerbose_) {
+                G4cout
+                    << "     STATUS: REJECTED - outside "
+                    << cryAcceptanceMode_ << " acceptance";
+                if (cryAcceptanceMode_ == "volume") {
+                    G4cout << " for logical volume pattern '"
+                           << cryAcceptanceVolume_ << "'";
+                }
+                G4cout << G4endl << G4endl;
+            }
             delete cryParticle;
             continue;
         }

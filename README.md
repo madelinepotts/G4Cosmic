@@ -4,12 +4,9 @@ G4Cosmic is an early-stage reusable Geant4 framework for cosmic-ray detector
 simulation. It was extracted from a working CRY/Geant4 detector simulation and
 is being refactored in small, buildable stages.
 
-Stage 3 separates the inherited WarpTrack detector from the framework code. The
-top-level executable still runs the WarpTrack detector as the first example, but
-its geometry and detector-specific sensitive-detector code now live under
-`examples/WarpTrack/` instead of the framework source directory.
+Stage 4 keeps the WarpTrack detector as the first example, but removes the last detector-specific CRY acceptance logic from the framework. CRY acceptance can now be configured against any logical volume name supplied by a macro.
 
-## Stage 3 contents
+## Stage 4 contents
 
 - CMake project: `G4Cosmic`
 - Executable: `g4cosmic`
@@ -21,6 +18,7 @@ its geometry and detector-specific sensitive-detector code now live under
 - JSON/code-generation geometry path removed from CMake
 - Optional Geant4 UI/visualization support for headless Linux/macOS/CI builds
 - Cross-platform CRY installer scripts
+- CRY acceptance by macro-provided logical-volume name or wildcard
 
 The WarpTrack example still uses the generated `WarpTrackGeometry` namespace.
 That header is now treated as a normal C++ geometry artifact owned by the
@@ -35,6 +33,7 @@ G4Cosmic/
 ├── STAGE1_CHANGES.md
 ├── STAGE2_CHANGES.md
 ├── STAGE3_CHANGES.md
+├── STAGE4_CHANGES.md
 ├── .gitignore
 ├── cry/
 │   └── cry_setup.txt
@@ -250,6 +249,28 @@ CRY settings are exposed through `/g4cosmic/cry/...` commands:
 
 `/g4cosmic/cry/apply` rebuilds the CRY generator from the preceding settings,
 so it must appear after CRY configuration changes and before `/run/beamOn`.
+
+### CRY logical-volume acceptance
+
+By default, CRY uses `acceptanceMode all`, which preserves the raw CRY source
+behavior. For enriched detector samples, you can redraw CRY showers until at
+least one generated primary intersects a selected logical volume:
+
+```text
+/run/initialize
+/g4cosmic/source cry
+/g4cosmic/cry/acceptanceMode volume
+/g4cosmic/cry/acceptanceVolume *ScintillatorLV_*
+/g4cosmic/cry/maxAcceptanceTrials 10000
+/g4cosmic/cry/apply
+/run/beamOn 10000
+```
+
+`acceptanceVolume` is a Geant4 logical-volume name. It also supports `*` and
+`?` wildcards, which is useful for the WarpTrack example because each bar has a
+name like `BottomScintillatorLV_0` or `TopScintillatorLV_3`. This replaces the
+old hard-coded `rack` and `hodoscope` acceptance modes. The framework no longer
+includes the WarpTrack generated geometry header in `PrimaryGeneratorAction`.
 
 ## Output
 

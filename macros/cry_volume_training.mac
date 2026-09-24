@@ -1,6 +1,7 @@
-# Backward-compatible filename for the old rack-conditioned CRY training run.
-# Stage 4 replaced rack/hodoscope-specific acceptance with logical-volume
-# acceptance. This WarpTrack example targets all scintillator logical volumes.
+# Acceptance-conditioned CRY sample for ML training/enrichment.
+# This redraws CRY showers until at least one primary intersects a physical
+# placement whose logical-volume name matches the configured pattern.
+# Do not use this sample for absolute cosmic-ray rate measurements.
 /g4cosmic/output/file g4cosmic_volume_training_1m.root
 /run/initialize
 /g4cosmic/source cry

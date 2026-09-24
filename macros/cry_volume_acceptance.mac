@@ -1,6 +1,5 @@
-# Backward-compatible filename for the old rack-conditioned CRY validation run.
-# Stage 4 replaced rack/hodoscope-specific acceptance with logical-volume
-# acceptance. This WarpTrack example targets all scintillator logical volumes.
+# 10k validation run for CRY generation conditioned on a detector logical volume.
+# This is an enrichment sample, not an absolute-rate cosmic-ray simulation.
 /g4cosmic/output/file g4cosmic_volume_test_10k.root
 /run/initialize
 /g4cosmic/source cry
