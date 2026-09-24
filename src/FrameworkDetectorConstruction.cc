@@ -4,6 +4,7 @@
 
 #include "G4LogicalVolume.hh"
 #include "G4SDManager.hh"
+#include "G4VSensitiveDetector.hh"
 
 namespace G4Cosmic {
 
@@ -18,18 +19,26 @@ void DetectorConstruction::RegisterSensitiveVolume(G4LogicalVolume* volume) {
   }
 }
 
+G4VSensitiveDetector* DetectorConstruction::CreateSensitiveDetector() {
+  return new GenericSensitiveDetector("G4CosmicGenericSD");
+}
+
 void DetectorConstruction::ConstructSDandField() {
   if (sensitiveVolumes_.empty()) {
     return;
   }
 
+  auto* detector = CreateSensitiveDetector();
+  if (detector == nullptr) {
+    return;
+  }
+
   auto* sdManager = G4SDManager::GetSDMpointer();
-  auto* detector = new GenericSensitiveDetector("G4CosmicGenericSD");
   sdManager->AddNewDetector(detector);
 
   for (auto* volume : sensitiveVolumes_) {
     if (volume != nullptr) {
-      volume->SetSensitiveDetector(detector);
+      SetSensitiveDetector(volume, detector);
     }
   }
 }

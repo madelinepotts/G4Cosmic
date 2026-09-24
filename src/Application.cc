@@ -1,11 +1,11 @@
 #include "G4Cosmic/Application.hh"
 
 #include "ActionInitialization.hh"
-#include "DetectorConstruction.hh"
 #include "OutputMessenger.hh"
 
 #include "FTFP_BERT.hh"
 #include "G4RunManagerFactory.hh"
+#include "G4VUserDetectorConstruction.hh"
 #include "G4UImanager.hh"
 #ifdef G4MULTITHREADED
 #include "G4MTRunManager.hh"
@@ -20,8 +20,14 @@
 #include <cstdlib>
 #include <iostream>
 #include <thread>
+#include <utility>
 
 namespace G4Cosmic {
+
+Application::Application() = default;
+
+Application::Application(DetectorFactory detectorFactory)
+    : detectorFactory_(std::move(detectorFactory)) {}
 
 int Application::RequestedThreads(int argc, char** argv) {
   if (argc > 2) {
@@ -51,7 +57,13 @@ int Application::Run(int argc, char** argv) const {
   std::cout << "G4Cosmic: Geant4 was built without multithreading; using serial mode.\n";
 #endif
 
-  runManager->SetUserInitialization(new ::DetectorConstruction());
+  if (!detectorFactory_) {
+    std::cerr << "G4Cosmic: no detector construction was configured.\n";
+    delete runManager;
+    return 1;
+  }
+
+  runManager->SetUserInitialization(detectorFactory_());
   runManager->SetUserInitialization(new FTFP_BERT());
   runManager->SetUserInitialization(new ::ActionInitialization());
   runManager->Initialize();
