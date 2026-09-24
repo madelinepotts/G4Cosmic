@@ -1,81 +1,192 @@
-# G4Cosmic Stage 1
+# G4Cosmic
 
-G4Cosmic is the first-stage extraction of the CRY/Geant4 cosmic-ray simulation code from the existing detector-specific simulation. This stage is intentionally conservative: it renames the project, executable, macro command namespace, output defaults, and user-facing strings while preserving the existing detector geometry and physics behavior.
+G4Cosmic is an early-stage reusable Geant4 framework for cosmic-ray detector
+simulation. It was extracted from a working CRY/Geant4 detector simulation and
+is being refactored in small, buildable stages.
 
-This is **not yet** the final reusable framework API. The next stages will move the detector geometry into an example application, introduce a reusable detector base class, and replace detector-specific sensitive-detector code with a generic G4Cosmic hit recorder.
+Stage 2 is still conservative: the inherited detector geometry remains in place
+so the project can keep running while the framework API is introduced around it.
+The important new pieces are the repo-local dependency layout, cross-platform
+CMake cleanup, and the first `G4Cosmic::Application` / detector-framework
+classes.
 
-## What changed in Stage 1
+## Stage 2 contents
 
-- CMake project renamed from `WarpTrackSimulation` to `G4Cosmic`.
-- Executable renamed from `warptrack_sim` to `g4cosmic`.
-- Macro command prefix renamed from `/warptrack/...` to `/g4cosmic/...`.
-- Default ROOT file renamed from `warptrack.root` to `g4cosmic.root`.
-- Environment variables renamed:
-  - `WARPTRACK_SOURCE` -> `G4COSMIC_SOURCE`
-  - `WARPTRACK_THREADS` -> `G4COSMIC_THREADS`
-- Compile definitions renamed:
-  - `WARPTRACK_CRY_DATA_DIR` -> `G4COSMIC_CRY_DATA_DIR`
-  - `WARPTRACK_CRY_SETUP_FILE` -> `G4COSMIC_CRY_SETUP_FILE`
-- Build products and copied macro paths now use the `g4cosmic` target name.
+- CMake project: `G4Cosmic`
+- Executable: `g4cosmic`
+- Runtime command prefix: `/g4cosmic/...`
+- Default output: `g4cosmic.root`
+- Default CRY path: `external/cry`
+- New framework headers under `include/G4Cosmic/`
+- New `G4Cosmic::Application` wrapper used by `src/main.cc`
+- Optional Geant4 UI/visualization support for headless Linux/macOS/CI builds
+- `.gitignore` suitable for a public C++/CMake/Geant4 repository
 
-## Important Stage 1 note
+The inherited detector still uses the generated `WarpTrackGeometry` namespace.
+That is intentional for now. Moving that detector into `examples/WarpTrack/` is
+a later stage.
 
-The uploaded archive contained the simulation source tree, but it did **not** contain the sibling `geometry/` directory or the full `external/cry/` source tree. To keep this Stage 1 archive usable, the CMake file supports two geometry modes:
+## Repository layout
 
-1. If `../geometry/detector_geometry.json` and `../geometry/generate_cpp_geometry.py` exist, CMake regenerates `DetectorGeometryGenerated.hh` just like the original project.
-2. Otherwise, CMake falls back to the already-generated header included in `generated/DetectorGeometryGenerated.hh`.
-
-The internal generated namespace is still `WarpTrackGeometry` for now. That is deliberate for Stage 1 because the original geometry generator was not included in the uploaded ZIP. This will go away when the detector is moved into `examples/WarpTrack/` in a later stage.
+```text
+G4Cosmic/
+├── CMakeLists.txt
+├── README.md
+├── STAGE1_CHANGES.md
+├── STAGE2_CHANGES.md
+├── .gitignore
+├── cry/
+│   └── cry_setup.txt
+├── external/
+│   ├── README.md
+│   └── .gitkeep
+├── generated/
+│   └── DetectorGeometryGenerated.hh
+├── include/
+│   ├── *.hh
+│   └── G4Cosmic/
+│       ├── Application.hh
+│       ├── DetectorConstruction.hh
+│       └── GenericSensitiveDetector.hh
+├── macros/
+├── scripts/
+│   ├── install_cry.ps1
+│   └── install_cry.sh
+└── src/
+```
 
 ## Dependencies
 
 You need:
 
-- Geant4 with UI and visualization support.
-- CRY source and data files.
-- A C++17 compiler.
-- Python 3 only if you are regenerating geometry from the original JSON file.
+- CMake 3.20 or newer
+- A C++17 compiler
+- Geant4 11.x
+- CRY source and data files
+- Python 3 only if regenerating geometry from the original JSON file
 
-Set `CRY_ROOT` if CRY is not located at `external/cry` or `../external/cry`.
+ROOT is accessed through Geant4's analysis manager in this stage, so the exact
+ROOT setup follows your Geant4 build.
 
-## Build
+## Install CRY
 
-From a shell where Geant4 is configured:
+G4Cosmic follows the original WarpTrack dependency layout: CRY is installed at
+`external/cry`, and CMake builds the CRY source files directly into a static
+library.
+
+By default, CMake expects:
+
+```text
+external/cry/
+```
+
+Install CRY from the repository root on Windows:
 
 ```powershell
-cd G4Cosmic
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DGeant4_DIR="E:\Geant4\Geant4-11.4\lib\cmake\Geant4" -DCRY_ROOT="C:\Users\Maddie\Documents\GitHub\WarpTrack\external\cry"
+powershell -ExecutionPolicy Bypass -File .\scripts\install_cry.ps1
+```
+
+Install CRY on Linux or macOS:
+
+```bash
+chmod +x ./scripts/install_cry.sh
+./scripts/install_cry.sh
+```
+
+If CRY is already installed elsewhere, configure with:
+
+```bash
+cmake -S . -B build -DCRY_ROOT=/path/to/cry
+```
+
+The downloaded `external/cry` directory is ignored by Git. The repository keeps
+only `external/.gitkeep`, `external/README.md`, and the installer scripts.
+
+## Configure and build: Windows
+
+PowerShell with Visual Studio Build Tools:
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+  -DGeant4_DIR="E:\Geant4\Geant4-11.4\lib\cmake\Geant4" `
+  -DROOT_DIR="E:\root_v6.40.02\cmake"
+
 cmake --build build --config Release
 ```
 
-If CRY is in `../external/cry`, the `-DCRY_ROOT=...` argument can be omitted.
-
-## Run
-
-Run a validation macro:
+Run:
 
 ```powershell
-.\build\Release\g4cosmic.exe .\macros\validation.mac
+$env:GEANT4_DATA_DIR="E:\Geant4\Geant4-11.4\share\Geant4\data"
+.\build\Release\g4cosmic.exe .\macros\quick.mac
 ```
 
-Run interactively:
-
-```powershell
-.\build\Release\g4cosmic.exe
-```
-
-Run with a chosen worker count:
+Set the thread count either as the second command-line argument:
 
 ```powershell
 .\build\Release\g4cosmic.exe .\macros\run.mac 16
 ```
 
-Or use the environment variable:
+or with an environment variable:
 
 ```powershell
 $env:G4COSMIC_THREADS="16"
 .\build\Release\g4cosmic.exe .\macros\run.mac
 ```
+
+## Configure and build: Linux/macOS
+
+The most portable approach is to point CMake at Geant4 with either
+`Geant4_DIR` or `CMAKE_PREFIX_PATH`.
+
+```bash
+cmake -S . -B build \
+  -DGeant4_DIR=/path/to/geant4/lib/cmake/Geant4 \
+  -DCRY_ROOT=$PWD/external/cry
+
+cmake --build build -j
+```
+
+Run:
+
+```bash
+./build/g4cosmic macros/quick.mac
+```
+
+Set the thread count either as an argument:
+
+```bash
+./build/g4cosmic macros/run.mac 16
+```
+
+or with an environment variable:
+
+```bash
+export G4COSMIC_THREADS=16
+./build/g4cosmic macros/run.mac
+```
+
+## Headless builds
+
+Some Linux/macOS systems, CI runners, and clusters have Geant4 installed without
+interactive UI/visualization components. For those environments, configure with:
+
+```bash
+cmake -S . -B build \
+  -DG4COSMIC_ENABLE_UIVIS=OFF \
+  -DGeant4_DIR=/path/to/geant4/lib/cmake/Geant4 \
+  -DCRY_ROOT=/path/to/cry
+
+cmake --build build -j
+```
+
+When `G4COSMIC_ENABLE_UIVIS=OFF`, run with a macro file:
+
+```bash
+./build/g4cosmic macros/quick.mac
+```
+
+Interactive mode is intentionally disabled in that configuration.
 
 ## Source selection
 
@@ -88,11 +199,20 @@ The default source is CRY. You can switch source mode with a macro:
 /run/beamOn 1000
 ```
 
-Or use the environment variable before startup:
+or use the environment variable before startup:
+
+Windows:
 
 ```powershell
 $env:G4COSMIC_SOURCE="gun"
 .\build\Release\g4cosmic.exe .\macros\geometry_check.mac
+```
+
+Linux/macOS:
+
+```bash
+export G4COSMIC_SOURCE=gun
+./build/g4cosmic macros/geometry_check.mac
 ```
 
 Supported source names in this stage are:
@@ -103,7 +223,7 @@ Supported source names in this stage are:
 
 ## CRY configuration
 
-CRY settings are available through `/g4cosmic/cry/...` commands:
+CRY settings are exposed through `/g4cosmic/cry/...` commands:
 
 ```text
 /g4cosmic/source cry
@@ -128,7 +248,8 @@ CRY settings are available through `/g4cosmic/cry/...` commands:
 /run/beamOn 1000000
 ```
 
-`/g4cosmic/cry/apply` rebuilds the CRY generator from the preceding settings, so it must appear after CRY configuration changes and before `/run/beamOn`.
+`/g4cosmic/cry/apply` rebuilds the CRY generator from the preceding settings,
+so it must appear after CRY configuration changes and before `/run/beamOn`.
 
 ## Output
 
@@ -144,22 +265,19 @@ You can change it in a macro:
 /g4cosmic/output/file validation.root
 ```
 
-The current Stage 1 output trees are unchanged from the source project:
+The current output trees are still inherited from the source simulation:
 
-- `hits`: nonzero scintillator energy-deposition steps and detector/channel identity.
-- `primaries`: generated CRY/gun/sample primary truth.
-- `track_end`: terminal track state and stopping/server truth.
+- `hits`: nonzero scintillator energy-deposition steps and detector/channel identity
+- `primaries`: generated CRY/gun/sample primary truth
+- `track_end`: terminal track state and stopping/server truth
 
-Later stages will rename and reorganize these into the intended G4Cosmic output API, likely `Primary`, `RawHits`, and `ReducedHits`.
+Later stages will reorganize this into the intended G4Cosmic output API,
+including `Primary`, `RawHits`, and `ReducedHits`.
 
 ## Current limitation
 
-Stage 1 is a project rename and stabilization pass. It still contains the inherited rack/hodoscope detector construction and detector-specific channel/stopping logic. The next stage should split this into:
-
-```text
-G4Cosmic framework code
-examples/WarpTrack detector code
-examples/BasicDetector minimal detector code
-```
-
-That is where G4Cosmic becomes a proper reusable framework instead of a renamed application.
+Stage 2 introduces framework structure without fully moving detector-specific
+code yet. The inherited rack/hodoscope detector construction and stopping logic
+are still compiled into the main executable. The next major stage should move
+that detector into `examples/WarpTrack/` and make the core framework independent
+of any one detector geometry.

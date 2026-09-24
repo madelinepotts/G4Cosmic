@@ -12,9 +12,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # =============================================================================
 # Geant4
+#
+# UI/visualization is enabled by default because the existing application
+# supports interactive Geant4 sessions. Turn it off for headless CI, clusters,
+# or minimal Geant4 installations:
+#
+#   cmake -S . -B build -DG4COSMIC_ENABLE_UIVIS=OFF
 # =============================================================================
 
-find_package(Geant4 REQUIRED ui_all vis_all)
+option(G4COSMIC_ENABLE_UIVIS "Build interactive Geant4 UI and visualization support" ON)
+
+if(G4COSMIC_ENABLE_UIVIS)
+    find_package(Geant4 REQUIRED ui_all vis_all)
+else()
+    find_package(Geant4 REQUIRED)
+endif()
+
 include(${Geant4_USE_FILE})
 
 # =============================================================================
@@ -107,19 +120,16 @@ endif()
 # CRY
 # =============================================================================
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/cry/src/CRYGenerator.cc")
-    set(G4COSMIC_DEFAULT_CRY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/cry")
-else()
-    set(G4COSMIC_DEFAULT_CRY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../external/cry")
-endif()
-
-set(CRY_ROOT "${G4COSMIC_DEFAULT_CRY_ROOT}" CACHE PATH "Path to the CRY source tree")
+set(CRY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/cry" CACHE PATH "Path to the CRY source tree")
 
 if(NOT EXISTS "${CRY_ROOT}/src/CRYGenerator.cc")
     message(FATAL_ERROR
         "CRY was not found at:\n"
         "  ${CRY_ROOT}\n\n"
-        "Set CRY_ROOT to your CRY installation, or place CRY at external/cry."
+        "Install CRY into external/cry with one of:\n"
+        "  powershell -ExecutionPolicy Bypass -File .\\scripts\\install_cry.ps1\n"
+        "  ./scripts/install_cry.sh\n\n"
+        "Or set CRY_ROOT to an existing CRY source tree."
     )
 endif()
 
@@ -175,7 +185,7 @@ file(GLOB G4COSMIC_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc"
 )
 
-file(GLOB G4COSMIC_HEADERS CONFIGURE_DEPENDS
+file(GLOB_RECURSE G4COSMIC_HEADERS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hh"
 )
 
@@ -204,6 +214,14 @@ target_include_directories(
         "${G4COSMIC_GEOMETRY_INCLUDE_DIR}"
         "${CRY_ROOT}/src"
 )
+
+if(G4COSMIC_ENABLE_UIVIS)
+    target_compile_definitions(
+        g4cosmic
+        PRIVATE
+            G4COSMIC_ENABLE_UIVIS=1
+    )
+endif()
 
 # =============================================================================
 # Link libraries
@@ -302,3 +320,4 @@ message(STATUS "Detector geometry:   ${G4COSMIC_GENERATED_GEOMETRY}")
 message(STATUS "CRY root:            ${CRY_ROOT}")
 message(STATUS "CRY data:            ${CRY_ROOT}/data")
 message(STATUS "Geant4 version:      ${Geant4_VERSION}")
+message(STATUS "UI/Vis enabled:      ${G4COSMIC_ENABLE_UIVIS}")

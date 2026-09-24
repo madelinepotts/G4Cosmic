@@ -1,2 +1,48 @@
-# Ignore build
-build/*
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# Visual Studio / MSVC
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+x64/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+
+# ROOT / Geant4 outputs
+*.root
+*.log
+*.out
+*.err
+G4History.macro
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+# Downloaded third-party dependencies
+.download/
+external/cry/
+!external/.gitkeep
+!external/README.md
