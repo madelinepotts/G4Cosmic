@@ -1,0 +1,31 @@
+# Standard G4Cosmic validation sample.
+# Produces g4cosmic.root without opening the visualizer.
+/g4cosmic/output/file validation.root
+/g4cosmic/source cry
+
+# CRY particle species
+/g4cosmic/cry/returnNeutrons 1
+/g4cosmic/cry/returnProtons 1
+/g4cosmic/cry/returnGammas 1
+/g4cosmic/cry/returnElectrons 1
+/g4cosmic/cry/returnMuons 1
+/g4cosmic/cry/returnPions 1
+/g4cosmic/cry/returnKaons 1
+
+# CRY sampling configuration
+/g4cosmic/cry/date 9-18-2026
+/g4cosmic/cry/latitude 46.3
+/g4cosmic/cry/altitude 0
+/g4cosmic/cry/subboxLength 2
+/g4cosmic/cry/nParticlesMin 1
+/g4cosmic/cry/nParticlesMax 1000000
+/g4cosmic/cry/xoffset 0
+/g4cosmic/cry/yoffset 0
+/g4cosmic/cry/zoffset 0
+
+# Disable per-particle console spam for production-sized runs.
+/g4cosmic/cry/verbose 0
+
+# Apply all CRY settings above before beamOn.
+/g4cosmic/cry/apply
+/run/beamOn 10000

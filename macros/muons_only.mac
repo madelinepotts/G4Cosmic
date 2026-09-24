@@ -1,0 +1,18 @@
+# Diagnostic CRY sample that returns only muons.
+# This changes the sampled output population and should NOT be used as an
+# unbiased all-particle cosmic-ray training sample.
+/g4cosmic/output/file muons_only.root
+/g4cosmic/source cry
+/g4cosmic/cry/returnNeutrons 0
+/g4cosmic/cry/returnProtons 0
+/g4cosmic/cry/returnGammas 0
+/g4cosmic/cry/returnElectrons 0
+/g4cosmic/cry/returnMuons 1
+/g4cosmic/cry/returnPions 0
+/g4cosmic/cry/returnKaons 0
+/g4cosmic/cry/subboxLength 2
+/g4cosmic/cry/nParticlesMin 1
+/g4cosmic/cry/nParticlesMax 1000000
+/g4cosmic/cry/verbose 0
+/g4cosmic/cry/apply
+/run/beamOn 10000

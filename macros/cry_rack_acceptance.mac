@@ -1,0 +1,9 @@
+# 10k validation run for rack-conditioned CRY generation.
+# Safe: does not write g4cosmic_physical_1m.root.
+/g4cosmic/output/file g4cosmic_rack_test_10k.root
+/run/initialize
+/g4cosmic/source cry
+/g4cosmic/cry/verbose 0
+/g4cosmic/cry/acceptanceMode rack
+/g4cosmic/cry/apply
+/run/beamOn 10000

@@ -1,0 +1,13 @@
+# Balanced ML-development sample: single muons.
+# The randomized source uses a cos(theta)-weighted downward angular distribution,
+# uniform x/y source positions, and log-uniform kinetic energy.
+/g4cosmic/output/file sample_muon.root
+/g4cosmic/source sample
+/g4cosmic/sample/particle mu-
+/g4cosmic/sample/minEnergy 30 MeV
+/g4cosmic/sample/maxEnergy 10 GeV
+/g4cosmic/sample/halfWidthX 200 mm
+/g4cosmic/sample/halfWidthY 400 mm
+/g4cosmic/sample/maxTheta 30 deg
+/g4cosmic/sample/logEnergy 1
+/run/beamOn 10000

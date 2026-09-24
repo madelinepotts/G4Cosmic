@@ -1,0 +1,8 @@
+# Default non-visual CRY batch run.
+# CRY defaults are configured in PrimaryGeneratorAction and can be overridden
+# here before /g4cosmic/cry/apply.
+/g4cosmic/output/file g4cosmic_physical_1m.root
+/g4cosmic/source cry
+/g4cosmic/cry/verbose 0
+/g4cosmic/cry/apply
+/run/beamOn 1000000

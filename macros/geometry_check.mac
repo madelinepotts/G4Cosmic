@@ -1,0 +1,9 @@
+# Geometry/navigation smoke test.
+# Uses the deterministic particle gun rather than CRY so geometry can be
+# checked independently of the cosmic-ray source.
+/g4cosmic/output/file geometry_check.root
+/g4cosmic/source gun
+/geometry/test/tolerance 1 um
+/geometry/test/verbosity true
+/geometry/test/run
+/run/beamOn 100

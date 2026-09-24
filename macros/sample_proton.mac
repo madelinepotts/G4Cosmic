@@ -1,0 +1,11 @@
+# Balanced ML-development sample: single protons.
+/g4cosmic/output/file sample_proton.root
+/g4cosmic/source sample
+/g4cosmic/sample/particle proton
+/g4cosmic/sample/minEnergy 50 MeV
+/g4cosmic/sample/maxEnergy 10 GeV
+/g4cosmic/sample/halfWidthX 200 mm
+/g4cosmic/sample/halfWidthY 400 mm
+/g4cosmic/sample/maxTheta 30 deg
+/g4cosmic/sample/logEnergy 1
+/run/beamOn 10000
