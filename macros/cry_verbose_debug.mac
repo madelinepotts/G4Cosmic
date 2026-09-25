@@ -1,0 +1,8 @@
+# Verbose CRY debugging run.
+# In multithreaded mode, detailed per-event CRY diagnostics are suppressed on worker threads
+# to keep terminal output readable. For full event-by-event diagnostics, run with one thread.
+/g4cosmic/output/file cry_verbose_debug.root
+/g4cosmic/source cry
+/g4cosmic/cry/verbose 1
+/g4cosmic/cry/apply
+/run/beamOn 10

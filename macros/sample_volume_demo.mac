@@ -8,7 +8,6 @@
 /g4cosmic/sample/maxEnergy 10 GeV
 /g4cosmic/sample/logEnergy 1
 /g4cosmic/sample/sourceVolume ScintillatorBarLV
-/g4cosmic/sample/maxPositionTrials 10000
 /g4cosmic/sample/positionMode volume
 /g4cosmic/sample/maxTheta 30 deg
 /run/beamOn 1000

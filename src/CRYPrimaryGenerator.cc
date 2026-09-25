@@ -18,6 +18,7 @@
 #include "G4ParticleGun.hh"
 #include "G4ParticleTable.hh"
 #include "G4SystemOfUnits.hh"
+#include "G4Threading.hh"
 #include "G4ThreeVector.hh"
 #include "G4ios.hh"
 #include "Randomize.hh"
@@ -39,6 +40,20 @@
 #endif
 
 namespace {
+
+bool IsMasterThread()
+{
+#ifdef G4MULTITHREADED
+    return G4Threading::IsMasterThread();
+#else
+    return true;
+#endif
+}
+
+bool ShouldPrintVerbose(G4int verbose)
+{
+    return verbose != 0 && IsMasterThread();
+}
 
 double CryRandom()
 {
@@ -349,10 +364,12 @@ void CRYPrimaryGenerator::RefreshAcceptanceVolumes() const
             "'. Use an existing G4LogicalVolume name, or a wildcard such as 'ScintillatorBarLV'.");
     }
 
-    G4cout << "G4Cosmic: CRY acceptance uses "
-           << acceptanceBoxes_.size()
-           << " physical placement(s) matching logical volume pattern '"
-           << cryAcceptanceVolume_ << "'." << G4endl;
+    if (IsMasterThread()) {
+        G4cout << "G4Cosmic: CRY acceptance uses "
+               << acceptanceBoxes_.size()
+               << " physical placement(s) matching logical volume pattern '"
+               << cryAcceptanceVolume_ << "'." << G4endl;
+    }
 }
 
 
@@ -433,22 +450,24 @@ void CRYPrimaryGenerator::InitializeCRY()
     crySetup_->setRandomFunction(&CryRandom);
     cryGenerator_ = std::make_unique<CRYGenerator>(crySetup_.get());
 
-    G4cout << G4endl
-           << "========================================" << G4endl
-           << " G4Cosmic CRY source initialized" << G4endl
-           << " CRY data: " << G4COSMIC_CRY_DATA_DIR << G4endl
-           << " date: " << date_ << G4endl
-           << " latitude: " << latitude_ << G4endl
-           << " altitude: " << altitude_ << " m" << G4endl
-           << " subboxLength: " << subboxLength_ << " m" << G4endl
-           << " particle range: " << nParticlesMin_ << ".." << nParticlesMax_ << G4endl
-           << " Generation Z: " << generationZ_ / m << " m" << G4endl
-           << " acceptanceMode: " << cryAcceptanceMode_ << G4endl
-           << " acceptanceVolume: "
-           << (cryAcceptanceVolume_.empty() ? G4String("<unset>") : cryAcceptanceVolume_)
-           << G4endl
-           << " maxAcceptanceTrials: " << cryMaxAcceptanceTrials_ << G4endl
-           << "========================================" << G4endl;
+    if (IsMasterThread()) {
+        G4cout << G4endl
+               << "========================================" << G4endl
+               << " G4Cosmic CRY source initialized" << G4endl
+               << " CRY data: " << G4COSMIC_CRY_DATA_DIR << G4endl
+               << " date: " << date_ << G4endl
+               << " latitude: " << latitude_ << G4endl
+               << " altitude: " << altitude_ << " m" << G4endl
+               << " subboxLength: " << subboxLength_ << " m" << G4endl
+               << " particle range: " << nParticlesMin_ << ".." << nParticlesMax_ << G4endl
+               << " Generation Z: " << generationZ_ / m << " m" << G4endl
+               << " acceptanceMode: " << cryAcceptanceMode_ << G4endl
+               << " acceptanceVolume: "
+               << (cryAcceptanceVolume_.empty() ? G4String("<unset>") : cryAcceptanceVolume_)
+               << G4endl
+               << " maxAcceptanceTrials: " << cryMaxAcceptanceTrials_ << G4endl
+               << "========================================" << G4endl;
+    }
 }
 
 void CRYPrimaryGenerator::GeneratePrimaries(
@@ -541,7 +560,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
     // Diagnostic header
     // ---------------------------------------------------------------------
 
-    if (cryVerbose_) G4cout
+    if (ShouldPrintVerbose(cryVerbose_)) G4cout
         << G4endl
         << "========================================"
         << G4endl
@@ -566,7 +585,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
             particles[i];
 
         if (!cryParticle) {
-            if (cryVerbose_) G4cout
+            if (ShouldPrintVerbose(cryVerbose_)) G4cout
                 << " [" << i
                 << "] NULL CRY particle"
                 << G4endl;
@@ -625,55 +644,55 @@ void CRYPrimaryGenerator::GeneratePrimaries(
         // Print raw CRY information
         // -------------------------------------------------------------
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << std::fixed
             << std::setprecision(6);
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << " [" << i << "]"
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     PDG:        "
             << pdg;
 
         if (definition) {
-            if (cryVerbose_) G4cout
+            if (ShouldPrintVerbose(cryVerbose_)) G4cout
                 << " ("
                 << definition->GetParticleName()
                 << ")";
         }
         else {
-            if (cryVerbose_) G4cout
+            if (ShouldPrintVerbose(cryVerbose_)) G4cout
                 << " (UNKNOWN TO GEANT4)";
         }
 
-        if (cryVerbose_) G4cout << G4endl;
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     CRY KE:     "
             << cryKE
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     CRY time:   "
             << cryTime
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     CRY x,y:    ("
             << cryX << ", "
             << cryY << ")"
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     CRY dir:    ("
             << cryU << ", "
             << cryV << ", "
             << cryW << ")"
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     |dir|^2:    "
             << direction.mag2()
             << G4endl;
@@ -683,7 +702,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
         // -------------------------------------------------------------
 
         if (!definition) {
-            if (cryVerbose_) G4cout
+            if (ShouldPrintVerbose(cryVerbose_)) G4cout
                 << "     STATUS: SKIPPED - "
                 << "PDG not known to Geant4"
                 << G4endl
@@ -694,7 +713,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
         }
 
         if (direction.mag2() == 0.0) {
-            if (cryVerbose_) G4cout
+            if (ShouldPrintVerbose(cryVerbose_)) G4cout
                 << "     STATUS: SKIPPED - "
                 << "zero momentum direction"
                 << G4endl
@@ -710,7 +729,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
         // not inspect Geant4 interactions or detector response, so it cannot
         // leak simulation outcome information into generation.
         if (!AcceptPrimary(position, direction)) {
-            if (cryVerbose_) {
+            if (ShouldPrintVerbose(cryVerbose_)) {
                 G4cout
                     << "     STATUS: REJECTED - outside "
                     << cryAcceptanceMode_ << " acceptance";
@@ -728,7 +747,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
         // Print values that will actually be supplied to Geant4.
         // -------------------------------------------------------------
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     G4 position: ("
             << position.x() / m << ", "
             << position.y() / m << ", "
@@ -736,7 +755,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
             << ") m"
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     G4 dir:      ("
             << direction.x() << ", "
             << direction.y() << ", "
@@ -744,13 +763,13 @@ void CRYPrimaryGenerator::GeneratePrimaries(
             << ")"
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     G4 KE:       "
             << cryKE
             << " MeV"
             << G4endl;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     G4 time:     "
             << cryTime
             << " s"
@@ -797,7 +816,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
 
         ++acceptedParticles;
 
-        if (cryVerbose_) G4cout
+        if (ShouldPrintVerbose(cryVerbose_)) G4cout
             << "     STATUS: ACCEPTED"
             << G4endl
             << G4endl;
@@ -805,7 +824,7 @@ void CRYPrimaryGenerator::GeneratePrimaries(
         delete cryParticle;
     }
 
-    if (cryVerbose_) G4cout
+    if (ShouldPrintVerbose(cryVerbose_)) G4cout
         << "----------------------------------------"
         << G4endl
         << " CRY event "

@@ -4,6 +4,7 @@
 #include "OutputMessenger.hh"
 
 #include "FTFP_BERT.hh"
+#include "G4VModularPhysicsList.hh"
 #include "G4RunManagerFactory.hh"
 #include "G4VUserDetectorConstruction.hh"
 #include "G4UImanager.hh"
@@ -64,7 +65,9 @@ int Application::Run(int argc, char** argv) const {
   }
 
   runManager->SetUserInitialization(detectorFactory_());
-  runManager->SetUserInitialization(new FTFP_BERT());
+  auto* physicsList = new FTFP_BERT();
+  physicsList->SetVerboseLevel(0);
+  runManager->SetUserInitialization(physicsList);
   runManager->SetUserInitialization(new ::ActionInitialization());
   runManager->Initialize();
 

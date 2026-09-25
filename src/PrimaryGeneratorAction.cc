@@ -8,10 +8,21 @@
 #include "G4Event.hh"
 #include "G4GenericMessenger.hh"
 #include "G4ios.hh"
+#include "G4Threading.hh"
 
 #include <cstdlib>
 #include <stdexcept>
 #include <utility>
+
+namespace {
+bool IsMasterThread() {
+#ifdef G4MULTITHREADED
+    return G4Threading::IsMasterThread();
+#else
+    return true;
+#endif
+}
+}
 
 PrimaryGeneratorAction::PrimaryGeneratorAction(RunAction* runAction)
     : runAction_(runAction)
@@ -59,12 +70,14 @@ void PrimaryGeneratorAction::SetSource(const G4String& source)
 {
     auto found = generators_.find(source);
     if (found == generators_.end()) {
-        G4cout << "G4Cosmic: unknown source '" << source
-               << "'. Available sources:";
-        for (const auto& item : generators_) {
-            G4cout << " " << item.first;
+        if (IsMasterThread()) {
+            G4cout << "G4Cosmic: unknown source '" << source
+                   << "'. Available sources:";
+            for (const auto& item : generators_) {
+                G4cout << " " << item.first;
+            }
+            G4cout << G4endl;
         }
-        G4cout << G4endl;
         return;
     }
 

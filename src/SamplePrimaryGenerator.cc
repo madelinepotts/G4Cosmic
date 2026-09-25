@@ -12,6 +12,7 @@
 #include "G4PhysicalConstants.hh"
 #include "G4RotationMatrix.hh"
 #include "G4SystemOfUnits.hh"
+#include "G4Threading.hh"
 #include "G4ThreeVector.hh"
 #include "G4TransportationManager.hh"
 #include "G4VPhysicalVolume.hh"
@@ -59,6 +60,15 @@ bool WildcardMatches(const std::string& pattern, const std::string& text)
     }
 
     return p == pattern.size();
+}
+
+bool IsMasterThread()
+{
+#ifdef G4MULTITHREADED
+    return G4Threading::IsMasterThread();
+#else
+    return true;
+#endif
 }
 
 G4double UniformBetween(G4double lo, G4double hi)
@@ -216,11 +226,13 @@ void SamplePrimaryGenerator::RefreshSourceVolumes() const
             "or a wildcard pattern.");
     }
 
-    G4cout << "G4Cosmic: sample source uses "
-           << sourcePlacements_.size()
-           << " physical placement(s) matching logical volume pattern '"
-           << sourceVolume_ << "' with positionMode '"
-           << positionMode_ << "'." << G4endl;
+    if (IsMasterThread()) {
+        G4cout << "G4Cosmic: sample source uses "
+               << sourcePlacements_.size()
+               << " physical placement(s) matching logical volume pattern '"
+               << sourceVolume_ << "' with positionMode '"
+               << positionMode_ << "'." << G4endl;
+    }
 }
 
 G4ThreeVector SamplePrimaryGenerator::SampleLocalPointInside(

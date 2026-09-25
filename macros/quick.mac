@@ -1,6 +1,6 @@
 # Quick non-visual CRY smoke test.
 /g4cosmic/output/file quick.root
 /g4cosmic/source cry
-/g4cosmic/cry/verbose 1
+/g4cosmic/cry/verbose 0
 /g4cosmic/cry/apply
 /run/beamOn 100

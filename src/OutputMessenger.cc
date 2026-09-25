@@ -1,9 +1,20 @@
 #include "OutputMessenger.hh"
 #include "OutputConfig.hh"
 #include "G4StateManager.hh"
+#include "G4Threading.hh"
 #include "G4UIcmdWithABool.hh"
 #include "G4UIcmdWithAString.hh"
 #include "G4ios.hh"
+
+namespace {
+bool IsMasterThread() {
+#ifdef G4MULTITHREADED
+    return G4Threading::IsMasterThread();
+#else
+    return true;
+#endif
+}
+}
 
 OutputMessenger::OutputMessenger() {
     fileCommand_ = new G4UIcmdWithAString("/g4cosmic/output/file", this);
@@ -40,23 +51,29 @@ OutputMessenger::~OutputMessenger() {
 void OutputMessenger::SetNewValue(G4UIcommand* command, G4String value) {
     if (command == fileCommand_) {
         OutputConfig::SetFileName(value);
-        G4cout << "G4Cosmic output ROOT file: " << OutputConfig::GetFileName() << G4endl;
+        if (IsMasterThread()) {
+            G4cout << "G4Cosmic output ROOT file: " << OutputConfig::GetFileName() << G4endl;
+        }
         return;
     }
 
     if (command == trackEndCommand_) {
         OutputConfig::SetWriteTrackEnd(trackEndCommand_->GetNewBoolValue(value));
-        G4cout << "G4Cosmic optional track_end tree: "
-               << (OutputConfig::GetWriteTrackEnd() ? "enabled" : "disabled")
-               << G4endl;
+        if (IsMasterThread()) {
+            G4cout << "G4Cosmic optional track_end tree: "
+                   << (OutputConfig::GetWriteTrackEnd() ? "enabled" : "disabled")
+                   << G4endl;
+        }
         return;
     }
 
     if (command == reducedHitsCommand_) {
         OutputConfig::SetWriteReducedHits(reducedHitsCommand_->GetNewBoolValue(value));
-        G4cout << "G4Cosmic reduced hit trees: "
-               << (OutputConfig::GetWriteReducedHits() ? "enabled" : "disabled")
-               << G4endl;
+        if (IsMasterThread()) {
+            G4cout << "G4Cosmic reduced hit trees: "
+                   << (OutputConfig::GetWriteReducedHits() ? "enabled" : "disabled")
+                   << G4endl;
+        }
         return;
     }
 
@@ -65,10 +82,14 @@ void OutputMessenger::SetNewValue(G4UIcommand* command, G4String value) {
         OutputConfig::SetReducedHitMode(value);
         const auto after = OutputConfig::GetReducedHitMode();
         if (after == before && value != before) {
-            G4cout << "G4Cosmic warning: unknown reduced-hit mode '" << value
-                   << "'. Keeping mode '" << after << "'." << G4endl;
+            if (IsMasterThread()) {
+                G4cout << "G4Cosmic warning: unknown reduced-hit mode '" << value
+                       << "'. Keeping mode '" << after << "'." << G4endl;
+            }
         } else {
-            G4cout << "G4Cosmic reduced-hit mode: " << after << G4endl;
+            if (IsMasterThread()) {
+                G4cout << "G4Cosmic reduced-hit mode: " << after << G4endl;
+            }
         }
     }
 }

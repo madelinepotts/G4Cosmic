@@ -65,7 +65,7 @@ private:
     G4double xoffset_ = 0.0;
     G4double yoffset_ = 0.0;
     G4double zoffset_ = 0.0;
-    G4int cryVerbose_ = 1;
+    G4int cryVerbose_ = 0;
     G4String cryAcceptanceMode_ = "all";
     G4String cryAcceptanceVolume_ = "";
     G4int cryMaxAcceptanceTrials_ = 10000;

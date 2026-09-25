@@ -94,3 +94,14 @@ clean path for Stage 8, where CORSIKA can be added as another implementation of
 - `maxPositionTrials` controls rejection-sampling attempts when finding a point inside the selected solid. `maxVolumeTrials` is kept as a deprecated alias.
 - CRY remains plane-based by default (`acceptanceMode all`). Volume acceptance is only an optional event-enrichment filter, not the CRY source definition.
 - Added `macros/sample_volume_demo.mac` and `macros/sample_surface_demo.mac`.
+
+## Release cleanup for v0.7.2
+
+- Default CRY diagnostics are quiet by default.
+- `quick.mac` now uses `/g4cosmic/cry/verbose 0`.
+- Added `macros/cry_verbose_debug.mac` for explicit CRY diagnostic output.
+- Worker-thread duplicate status messages were reduced by guarding routine status output behind master-thread checks.
+- `sample` volume/surface source placement summaries print from the master thread only.
+- CRY initialization and acceptance-volume summaries print from the master thread only.
+- `FTFP_BERT` is configured with physics-list verbose level 0 by default.
+- Basic sample-source macros omit `maxPositionTrials`; it remains an optional advanced control.
