@@ -120,6 +120,67 @@ std::string FirstArgumentAfterCommand(const std::string& command,
   return result;
 }
 
+
+
+std::string RemainderAfterCommand(const std::string& command,
+                                  const std::string& commandName) {
+  if (!StartsWith(command, commandName)) return "";
+  return Trim(command.substr(commandName.size()));
+}
+
+bool WriteSourceMetadataFromMacroCommands(
+    G4Cosmic::JsonWriter& json,
+    const std::vector<G4Cosmic::RunMetadata::MacroFileRecord>& macroFiles) {
+  std::string sourceType;
+  for (const auto& file : macroFiles) {
+    for (const auto& command : file.commands) {
+      const auto candidate = FirstArgumentAfterCommand(command, "/g4cosmic/source");
+      if (!candidate.empty()) {
+        sourceType = candidate;
+      }
+    }
+  }
+
+  if (sourceType.empty()) {
+    return false;
+  }
+
+  json.BeginObject("source");
+  json.Write("type", sourceType);
+  json.Write("metadata_source", "macro_commands");
+  json.BeginObject("settings");
+
+  const std::string prefix = "/g4cosmic/" + sourceType + "/";
+  for (const auto& file : macroFiles) {
+    for (const auto& command : file.commands) {
+      if (!StartsWith(command, prefix)) {
+        continue;
+      }
+
+      const auto afterPrefix = command.substr(prefix.size());
+      const auto split = afterPrefix.find_first_of(" \t");
+      const auto key = split == std::string::npos
+          ? Trim(afterPrefix)
+          : Trim(afterPrefix.substr(0, split));
+      const auto value = split == std::string::npos
+          ? std::string{}
+          : Trim(afterPrefix.substr(split + 1));
+
+      // Commands such as /g4cosmic/<source>/apply are actions, not
+      // persistent source settings.  They belong in the macro command list
+      // above, but not in the reconstructed source.settings object.
+      static const std::set<std::string> actionCommands = {"apply"};
+      if (!key.empty() && actionCommands.find(key) == actionCommands.end()) {
+        json.Write(key, value);
+      }
+    }
+  }
+
+  json.EndObject();
+  json.EndObject();
+  return true;
+}
+
 // Minimal SHA-256 implementation for file fingerprints. This avoids adding a
 // crypto dependency solely for metadata provenance.
 class Sha256 {
@@ -505,6 +566,12 @@ void RunMetadata::WriteSidecar(const std::string& rootFileName) {
     json.BeginObject("source");
     sourceMetadataContributor_(json);
     json.EndObject();
+  } else {
+    // In Geant4 MT mode, primary-generator objects may exist only on worker
+    // threads, while the sidecar is written by the application/master thread.
+    // Preserve useful source provenance by falling back to the recorded macro
+    // commands whenever a live source contributor is not available.
+    WriteSourceMetadataFromMacroCommands(json, macroFiles_);
   }
 
   if (detectorMetadataContributor_) {

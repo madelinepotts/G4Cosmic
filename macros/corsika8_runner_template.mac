@@ -1,0 +1,30 @@
+# Template for a real CORSIKA 8 batch runner.
+#
+# This macro uses examples/corsika/corsika8_runner.py.  Configure one of:
+#   G4COSMIC_CORSIKA8_COMMAND      native/Linux/container/cluster wrapper
+#   G4COSMIC_CORSIKA8_WSL_COMMAND  Windows launching CORSIKA through WSL
+#
+# For plumbing tests only, set G4COSMIC_CORSIKA8_TOY_FALLBACK=1.
+
+/g4cosmic/output/file corsika8_runner.root
+
+/g4cosmic/source corsika
+/g4cosmic/corsika/generationMode batch
+/g4cosmic/corsika/cacheFile corsika8_generated_particles.dat
+/g4cosmic/corsika/eventsPerBatch 1000
+/g4cosmic/corsika/runner python
+/g4cosmic/corsika/runnerScript examples/corsika/corsika8_runner.py
+
+/g4cosmic/corsika/primary proton
+/g4cosmic/corsika/energyMode powerLaw
+/g4cosmic/corsika/minEnergy 1 TeV
+/g4cosmic/corsika/maxEnergy 100 TeV
+/g4cosmic/corsika/spectralIndex 2.7
+/g4cosmic/corsika/minZenith 0 deg
+/g4cosmic/corsika/maxZenith 60 deg
+/g4cosmic/corsika/minAzimuth 0 deg
+/g4cosmic/corsika/maxAzimuth 360 deg
+
+/g4cosmic/corsika/apply
+
+/run/beamOn 1000

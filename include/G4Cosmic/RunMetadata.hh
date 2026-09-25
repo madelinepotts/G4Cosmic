@@ -10,9 +10,12 @@
 
 namespace G4Cosmic {
 
-// Collects run provenance and writes the JSON sidecar next to each ROOT file.
-// Detector/source/application code may append metadata without the core knowing
-// detector-specific details.
+/**
+ * \brief Collects run provenance and writes JSON sidecars next to ROOT files.
+ *
+ * Detector, source, and application code may append metadata without the core
+ * knowing detector-specific details.
+ */
 class RunMetadata {
 public:
   using MetadataCallback = std::function<void(JsonWriter&)>;

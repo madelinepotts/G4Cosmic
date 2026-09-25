@@ -1,4 +1,4 @@
-# Minimal Stage 8 CORSIKA-style text primary list.
+# Minimal G4Cosmic/CORSIKA text shower list.
 # Columns:
 #   event_id  particle_id  x  y  z  px  py  pz  time
 # Units are selected in the macro. The demo macro uses:

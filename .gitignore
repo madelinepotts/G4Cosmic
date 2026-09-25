@@ -28,7 +28,6 @@ CPackSourceConfig.cmake
 *.log
 *.out
 *.err
-*.json
 G4History.macro
 
 # Python cache
@@ -51,3 +50,7 @@ external/corsika8/
 # Generated CORSIKA/G4Cosmic cache files
 corsika_cache*.dat
 corsika_generated*.dat
+
+# Common generated G4Cosmic metadata sidecars
+/g4cosmic.json
+/corsika_*.json

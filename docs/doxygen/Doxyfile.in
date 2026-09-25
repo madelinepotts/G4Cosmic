@@ -1,0 +1,20 @@
+PROJECT_NAME           = "G4Cosmic"
+PROJECT_NUMBER         = @PROJECT_VERSION@
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs/doxygen
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/include \
+                         @CMAKE_CURRENT_SOURCE_DIR@/src \
+                         @CMAKE_CURRENT_SOURCE_DIR@/docs/doxygen
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hh *.cc *.dox
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_AS_ERROR          = NO
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO
+USE_MDFILE_AS_MAINPAGE =
+QUIET                  = YES

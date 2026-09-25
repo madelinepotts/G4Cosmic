@@ -1,0 +1,72 @@
+/**
+\mainpage G4Cosmic Framework Overview
+
+\section g4cosmic_purpose Purpose
+
+G4Cosmic is a reusable Geant4 framework for cosmic-ray and particle-source
+simulation studies.  It provides common application plumbing, primary-source
+selection, sensitive-volume hit recording, ROOT output, and JSON run metadata.
+Detector-specific meaning stays outside the framework core.
+
+\section g4cosmic_philosophy Design philosophy
+
+\code{.txt}
+Detector code defines detector geometry and sensitive volumes.
+Macros define simulation runs.
+G4Cosmic provides reusable source, output, metadata, and Geant4 plumbing.
+\endcode
+
+The core records generic quantities: generated primaries, sensitive-volume
+energy-deposition steps, optional track endings, reduced hit summaries, and run
+provenance.  Detector-specific concepts such as bars, channels, hodoscopes,
+thresholds, triggers, and labels belong in downstream detector code or analysis.
+
+\section g4cosmic_sources Primary sources
+
+Primary generation is selected at runtime through `/g4cosmic/source`:
+
+\code{.txt}
+/g4cosmic/source cry
+/g4cosmic/source corsika
+/g4cosmic/source gun
+/g4cosmic/source sample
+\endcode
+
+Each source implements G4Cosmic::PrimaryGenerator and may append source-specific
+metadata to the JSON sidecar.  The CORSIKA source deliberately uses an external
+runner boundary, so G4Cosmic can build and run on platforms where real CORSIKA is
+absent or unsupported.  A runner may launch native Linux CORSIKA, WSL, a
+container, or a cluster job as long as it writes the G4Cosmic text `.dat` shower
+format.
+
+\section g4cosmic_metadata Run metadata
+
+Every ROOT file written by the framework gets a matching JSON sidecar:
+
+\code{.txt}
+output.root
+output.json
+\endcode
+
+The sidecar records runtime information, output file names, build/git metadata,
+macro fingerprints and commands, source metadata, and optional detector/user
+metadata supplied through append hooks.
+
+\section g4cosmic_extension Extension points
+
+The main extension points are:
+
+- G4Cosmic::DetectorConstruction for downstream detector geometry.
+- G4Cosmic::PrimaryGenerator for new source backends.
+- G4Cosmic::JsonWriter append hooks for detector/source/user metadata.
+
+\namespace G4Cosmic
+\brief Reusable Geant4 cosmic-ray simulation framework namespace.
+
+\details
+The G4Cosmic namespace contains the public framework interfaces used by example
+applications and downstream detector projects.  The namespace boundary is meant
+to keep core responsibilities clear: source selection, Geant4 application setup,
+sensitive-volume output, and run metadata live in the framework; detector meaning
+and analysis logic live outside it.
+*/

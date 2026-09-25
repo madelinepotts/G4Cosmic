@@ -6,8 +6,12 @@
 
 namespace G4Cosmic {
 
-// Small dependency-free JSON writer used for run metadata sidecars.
-// It intentionally supports only the operations G4Cosmic needs.
+/**
+ * \brief Small dependency-free JSON writer used for run metadata sidecars.
+ *
+ * It intentionally supports only the operations G4Cosmic needs so the framework
+ * can write provenance without adding a large JSON dependency.
+ */
 class JsonWriter {
 public:
   explicit JsonWriter(std::ostream& out, int indentSpaces = 2);

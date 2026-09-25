@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(G4Cosmic VERSION 0.8.3 LANGUAGES CXX)
+project(G4Cosmic VERSION 0.8.4 LANGUAGES CXX)
 
 # =============================================================================
 # C++ standard
@@ -61,6 +61,7 @@ endif()
 
 option(G4COSMIC_ENABLE_UIVIS "Build interactive Geant4 UI and visualization support" ON)
 option(G4COSMIC_BUILD_EXAMPLES "Build bundled example applications" ON)
+option(G4COSMIC_BUILD_DOCS "Add a Doxygen documentation target when Doxygen is available" OFF)
 
 if(G4COSMIC_ENABLE_UIVIS)
     find_package(Geant4 REQUIRED ui_all vis_all)
@@ -175,7 +176,8 @@ if(MSVC)
 endif()
 
 file(TO_CMAKE_PATH "${CRY_ROOT}/data" CRY_DATA_DIR_NORMALIZED)
-file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cry/cry_setup.txt" CRY_SETUP_FILE_NORMALIZED)
+set(G4COSMIC_CRY_SETUP_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/cry/cry_setup.txt" CACHE FILEPATH "Path to the G4Cosmic CRY setup macro")
+file(TO_CMAKE_PATH "${G4COSMIC_CRY_SETUP_FILE}" CRY_SETUP_FILE_NORMALIZED)
 
 target_compile_definitions(g4cosmic_core
     PRIVATE
@@ -203,7 +205,7 @@ function(g4cosmic_copy_runtime_files target_name)
         COMMAND ${CMAKE_COMMAND} -E make_directory
                 "$<TARGET_FILE_DIR:${target_name}>/cry"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${CMAKE_CURRENT_SOURCE_DIR}/cry/cry_setup.txt"
+                "${G4COSMIC_CRY_SETUP_FILE}"
                 "$<TARGET_FILE_DIR:${target_name}>/cry/cry_setup.txt"
         COMMENT "Copying CRY configuration for ${target_name}"
     )
@@ -277,6 +279,35 @@ if(G4COSMIC_BUILD_EXAMPLES)
     endif()
 
     g4cosmic_copy_runtime_files(g4cosmic_basic)
+endif()
+
+
+# =============================================================================
+# Doxygen documentation
+# =============================================================================
+
+if(G4COSMIC_BUILD_DOCS)
+    find_package(Doxygen)
+    if(DOXYGEN_FOUND)
+        set(G4COSMIC_DOXYGEN_INPUT
+            "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen"
+        )
+        configure_file(
+            "${CMAKE_CURRENT_SOURCE_DIR}/docs/doxygen/Doxyfile.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+            @ONLY
+        )
+        add_custom_target(g4cosmic_docs
+            COMMAND "${DOXYGEN_EXECUTABLE}" "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Generating G4Cosmic Doxygen documentation"
+            VERBATIM
+        )
+    else()
+        message(WARNING "G4COSMIC_BUILD_DOCS=ON, but Doxygen was not found. Documentation target will not be added.")
+    endif()
 endif()
 
 # =============================================================================
