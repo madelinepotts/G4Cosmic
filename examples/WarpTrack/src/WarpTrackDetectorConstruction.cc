@@ -175,7 +175,7 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
   auto *worldSolid = new G4Box("World", 1.5 * m, 1.5 * m, 2.0 * m);
   auto *worldLV = new G4LogicalVolume(worldSolid, air, "WorldLV");
   auto *worldPV =
-      new G4PVPlacement(nullptr, {}, worldLV, "WorldPV", nullptr, false, 0, true);
+      new G4PVPlacement(nullptr, {}, worldLV, "WorldPV", nullptr, false, 0, false);
   worldLV->SetVisAttributes(G4VisAttributes::GetInvisible());
 
   // Configurable 1U/2U server model. Each server is an individual rack
@@ -252,7 +252,7 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
       auto *interiorLV = new G4LogicalVolume(
           interiorSolid, interiorMaterial, "ServerInteriorLV" + suffix);
       new G4PVPlacement(nullptr, {}, interiorLV, "ServerInteriorPV" + suffix,
-                        serverLV, false, server.id, true);
+                        serverLV, false, server.id, false);
 
       auto *chassisVis = new G4VisAttributes(G4Colour(0.45, 0.45, 0.50));
       chassisVis->SetForceWireframe(true);
@@ -264,7 +264,7 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
       const G4double centerZ = server.rackU * rackUnitMM * mm;
       new G4PVPlacement(nullptr, G4ThreeVector(0.0, 0.0, centerZ), serverLV,
                         "ServerChassisPV" + suffix, worldLV, false,
-                        server.id, true);
+                        server.id, false);
     }
   }
 
@@ -321,7 +321,7 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
           worldLV,
           false,
           channel,
-          true);
+          false);
     }
   }
 

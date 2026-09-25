@@ -1,0 +1,17 @@
+# Read an existing G4Cosmic/CORSIKA text .dat shower list.
+# Format:
+#   event_id particle_id x y z px py pz time
+
+/g4cosmic/output/file corsika_dat_file.root
+
+/g4cosmic/source corsika
+/g4cosmic/corsika/generationMode file
+/g4cosmic/corsika/cacheFile examples/corsika/example_particles.dat
+/g4cosmic/corsika/idScheme corsika
+/g4cosmic/corsika/positionUnit m
+/g4cosmic/corsika/momentumUnit GeV
+/g4cosmic/corsika/timeUnit ns
+/g4cosmic/corsika/loop 1
+/g4cosmic/corsika/apply
+
+/run/beamOn 20

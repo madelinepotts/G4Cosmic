@@ -46,3 +46,7 @@ Thumbs.db
 external/cry/
 !external/.gitkeep
 !external/README.md
+external/corsika8/
+# Generated CORSIKA/G4Cosmic cache files
+corsika_cache*.dat
+corsika_generated*.dat
