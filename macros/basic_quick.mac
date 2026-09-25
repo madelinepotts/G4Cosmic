@@ -1,0 +1,4 @@
+# Quick smoke test for the BasicDetector example.
+/g4cosmic/output/file basic_quick.root
+/g4cosmic/source gun
+/run/beamOn 100

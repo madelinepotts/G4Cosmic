@@ -2,13 +2,58 @@
 #include "OutputConfig.hh"
 
 #include "G4AnalysisManager.hh"
+#include "G4ParticleDefinition.hh"
+#include "G4ParticleTable.hh"
 #include "G4SystemOfUnits.hh"
+#include "G4ios.hh"
+
+#include <cmath>
+#include <cctype>
+#include <string>
 
 namespace {
-constexpr int kHits = 0;
-constexpr int kPrimaries = 1;
-constexpr int kTrackEnd = 2;
+
+G4String SanitizeNtupleName(const G4String& name) {
+  std::string out;
+  out.reserve(name.size());
+
+  for (const char c : name) {
+    const unsigned char uc = static_cast<unsigned char>(c);
+    if (std::isalnum(uc) || c == '_') {
+      out.push_back(c);
+    } else {
+      out.push_back('_');
+    }
+  }
+
+  if (out.empty()) {
+    out = "sensitive_volume";
+  }
+
+  if (std::isdigit(static_cast<unsigned char>(out.front()))) {
+    out.insert(out.begin(), '_');
+  }
+
+  return G4String(out);
 }
+
+void CreateHitColumns(G4AnalysisManager* a, G4int ntupleId) {
+  a->CreateNtupleIColumn(ntupleId, "event_id");
+  a->CreateNtupleIColumn(ntupleId, "track_id");
+  a->CreateNtupleIColumn(ntupleId, "parent_id");
+  a->CreateNtupleIColumn(ntupleId, "pdg");
+  a->CreateNtupleSColumn(ntupleId, "particle_name");
+  a->CreateNtupleIColumn(ntupleId, "copy_no");
+  a->CreateNtupleDColumn(ntupleId, "edep_MeV");
+  a->CreateNtupleDColumn(ntupleId, "time_ns");
+  a->CreateNtupleDColumn(ntupleId, "x_mm");
+  a->CreateNtupleDColumn(ntupleId, "y_mm");
+  a->CreateNtupleDColumn(ntupleId, "z_mm");
+  a->CreateNtupleSColumn(ntupleId, "physical_volume");
+  a->CreateNtupleSColumn(ntupleId, "logical_volume");
+}
+
+}  // namespace
 
 RunAction::RunAction() {
   auto* a = G4AnalysisManager::Instance();
@@ -16,66 +61,104 @@ RunAction::RunAction() {
   a->SetVerboseLevel(0);
   a->SetNtupleMerging(true);
 
-  a->CreateNtuple("hits", "G4Cosmic Geant4 scintillator energy-deposition steps");
-  a->CreateNtupleIColumn("event_id");
-  a->CreateNtupleIColumn("channel_id");
-  a->CreateNtupleIColumn("hodoscope_id");
-  a->CreateNtupleIColumn("layer_id");
-  a->CreateNtupleIColumn("bar_id");
-  a->CreateNtupleIColumn("track_id");
-  a->CreateNtupleIColumn("parent_id");
-  a->CreateNtupleIColumn("pdg");
-  a->CreateNtupleDColumn("edep_MeV");
-  a->CreateNtupleDColumn("time_ns");
-  a->CreateNtupleDColumn("x_mm");
-  a->CreateNtupleDColumn("y_mm");
-  a->CreateNtupleDColumn("z_mm");
-  a->FinishNtuple();
+  CreatePrimaryNtuple();
+}
 
-  a->CreateNtuple("primaries", "G4Cosmic generated primary-particle truth");
-  a->CreateNtupleIColumn("event_id");
-  a->CreateNtupleIColumn("primary_index");
-  a->CreateNtupleIColumn("pdg");
-  a->CreateNtupleDColumn("kinetic_energy_MeV");
-  a->CreateNtupleDColumn("time_s");
-  a->CreateNtupleDColumn("x_m");
-  a->CreateNtupleDColumn("y_m");
-  a->CreateNtupleDColumn("z_m");
-  a->CreateNtupleDColumn("dir_x");
-  a->CreateNtupleDColumn("dir_y");
-  a->CreateNtupleDColumn("dir_z");
-  a->FinishNtuple();
+void RunAction::CreatePrimaryNtuple() {
+  if (primaryNtupleId_ >= 0) {
+    return;
+  }
 
-  a->CreateNtuple("track_end", "Geant4 track termination truth");
-  a->CreateNtupleIColumn("event_id");
-  a->CreateNtupleIColumn("track_id");
-  a->CreateNtupleIColumn("parent_id");
-  a->CreateNtupleIColumn("pdg");
-  a->CreateNtupleDColumn("start_kinetic_energy_MeV");
-  a->CreateNtupleDColumn("end_kinetic_energy_MeV");
-  a->CreateNtupleDColumn("x_mm");
-  a->CreateNtupleDColumn("y_mm");
-  a->CreateNtupleDColumn("z_mm");
-  a->CreateNtupleDColumn("track_length_mm");
-  a->CreateNtupleDColumn("global_time_ns");
-  a->CreateNtupleSColumn("end_process");
-  a->CreateNtupleSColumn("stop_region");
-  a->CreateNtupleIColumn("stop_hodoscope_id");
-  a->CreateNtupleIColumn("gap_upper_hodoscope_id");
-  a->CreateNtupleIColumn("gap_lower_hodoscope_id");
-  a->CreateNtupleSColumn("stop_material");
-  a->CreateNtupleIColumn("stop_server_id");
-  a->CreateNtupleSColumn("stop_server_type");
-  a->CreateNtupleIColumn("stopped");
-  a->CreateNtupleIColumn("stopped_between_hodoscopes");
-  a->CreateNtupleIColumn("stopped_in_server");
-  a->FinishNtuple();
+  auto* a = G4AnalysisManager::Instance();
+  primaryNtupleId_ = a->CreateNtuple("primaries", "G4Cosmic generated primary-particle truth");
+  a->CreateNtupleIColumn(primaryNtupleId_, "event_id");
+  a->CreateNtupleIColumn(primaryNtupleId_, "primary_index");
+  a->CreateNtupleIColumn(primaryNtupleId_, "pdg");
+  a->CreateNtupleSColumn(primaryNtupleId_, "particle_name");
+  a->CreateNtupleDColumn(primaryNtupleId_, "kinetic_energy_MeV");
+  a->CreateNtupleDColumn(primaryNtupleId_, "time_s");
+  a->CreateNtupleDColumn(primaryNtupleId_, "x_m");
+  a->CreateNtupleDColumn(primaryNtupleId_, "y_m");
+  a->CreateNtupleDColumn(primaryNtupleId_, "z_m");
+  // Unit momentum direction vector. These are not momentum components.
+  a->CreateNtupleDColumn(primaryNtupleId_, "momentum_unit_x");
+  a->CreateNtupleDColumn(primaryNtupleId_, "momentum_unit_y");
+  a->CreateNtupleDColumn(primaryNtupleId_, "momentum_unit_z");
+  // Reconstructed momentum components in MeV/c, derived from PDG mass,
+  // kinetic energy, and the unit momentum direction.
+  a->CreateNtupleDColumn(primaryNtupleId_, "px_MeV_c");
+  a->CreateNtupleDColumn(primaryNtupleId_, "py_MeV_c");
+  a->CreateNtupleDColumn(primaryNtupleId_, "pz_MeV_c");
+  a->FinishNtuple(primaryNtupleId_);
+}
+
+void RunAction::CreateHitNtupleForLogicalVolume(const G4String& logicalVolumeName) {
+  if (logicalVolumeName.empty()) {
+    return;
+  }
+
+  if (hitNtupleIdsByLogicalVolume_.find(logicalVolumeName) !=
+      hitNtupleIdsByLogicalVolume_.end()) {
+    return;
+  }
+
+  auto* a = G4AnalysisManager::Instance();
+  const auto treeName = SanitizeNtupleName(logicalVolumeName);
+  const auto ntupleId = a->CreateNtuple(
+      treeName,
+      "G4Cosmic sensitive-volume energy-deposition steps for logical volume " +
+          logicalVolumeName);
+  CreateHitColumns(a, ntupleId);
+  a->FinishNtuple(ntupleId);
+  hitNtupleIdsByLogicalVolume_[logicalVolumeName] = ntupleId;
+}
+
+void RunAction::CreateSensitiveVolumeHitNtuples() {
+  for (const auto& logicalVolumeName : OutputConfig::GetSensitiveVolumeNames()) {
+    CreateHitNtupleForLogicalVolume(logicalVolumeName);
+  }
+}
+
+void RunAction::CreateTrackEndNtuple() {
+  if (trackEndNtupleId_ >= 0) {
+    return;
+  }
+
+  auto* a = G4AnalysisManager::Instance();
+  trackEndNtupleId_ = a->CreateNtuple("track_end", "Optional generic Geant4 track termination truth");
+  a->CreateNtupleIColumn(trackEndNtupleId_, "event_id");
+  a->CreateNtupleIColumn(trackEndNtupleId_, "track_id");
+  a->CreateNtupleIColumn(trackEndNtupleId_, "parent_id");
+  a->CreateNtupleIColumn(trackEndNtupleId_, "pdg");
+  a->CreateNtupleSColumn(trackEndNtupleId_, "particle_name");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "start_kinetic_energy_MeV");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "end_kinetic_energy_MeV");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "x_mm");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "y_mm");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "z_mm");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "track_length_mm");
+  a->CreateNtupleDColumn(trackEndNtupleId_, "global_time_ns");
+  a->CreateNtupleSColumn(trackEndNtupleId_, "end_process");
+  a->CreateNtupleSColumn(trackEndNtupleId_, "material");
+  a->CreateNtupleSColumn(trackEndNtupleId_, "physical_volume");
+  a->CreateNtupleSColumn(trackEndNtupleId_, "logical_volume");
+  a->CreateNtupleIColumn(trackEndNtupleId_, "stopped");
+  a->FinishNtuple(trackEndNtupleId_);
 }
 
 void RunAction::BeginOfRunAction(const G4Run*) {
   auto* a = G4AnalysisManager::Instance();
-  // Read the filename here, not in the constructor. Macro commands are
-  // executed after Geant4 action initialization but before /run/beamOn.
+
+  // Macro commands are executed after Geant4 action initialization but before
+  // /run/beamOn. DetectorConstruction has also registered sensitive logical
+  // volumes by this point, so create one hit tree per registered volume before
+  // opening the output file.
+  CreateSensitiveVolumeHitNtuples();
+
+  if (OutputConfig::GetWriteTrackEnd()) {
+    CreateTrackEndNtuple();
+  }
+
   a->SetFileName(OutputConfig::GetFileName());
   a->OpenFile();
 }
@@ -87,62 +170,90 @@ void RunAction::EndOfRunAction(const G4Run*) {
 }
 
 void RunAction::WriteHit(const HitRecord& h) const {
+  auto it = hitNtupleIdsByLogicalVolume_.find(h.logicalVolumeName);
+  if (it == hitNtupleIdsByLogicalVolume_.end()) {
+    G4cerr << "G4Cosmic warning: no hit tree is registered for logical volume '"
+           << h.logicalVolumeName << "'. Did you call RegisterSensitiveVolume() for it?"
+           << G4endl;
+    return;
+  }
+
+  const auto ntupleId = it->second;
   auto* a = G4AnalysisManager::Instance();
-  a->FillNtupleIColumn(kHits, 0, h.eventID);
-  a->FillNtupleIColumn(kHits, 1, h.channelID);
-  a->FillNtupleIColumn(kHits, 2, h.hodoscopeID);
-  a->FillNtupleIColumn(kHits, 3, h.layerID);
-  a->FillNtupleIColumn(kHits, 4, h.barID);
-  a->FillNtupleIColumn(kHits, 5, h.trackID);
-  a->FillNtupleIColumn(kHits, 6, h.parentID);
-  a->FillNtupleIColumn(kHits, 7, h.pdg);
-  a->FillNtupleDColumn(kHits, 8, h.edep / MeV);
-  a->FillNtupleDColumn(kHits, 9, h.time / ns);
-  a->FillNtupleDColumn(kHits, 10, h.position.x() / mm);
-  a->FillNtupleDColumn(kHits, 11, h.position.y() / mm);
-  a->FillNtupleDColumn(kHits, 12, h.position.z() / mm);
-  a->AddNtupleRow(kHits);
+  a->FillNtupleIColumn(ntupleId, 0, h.eventID);
+  a->FillNtupleIColumn(ntupleId, 1, h.trackID);
+  a->FillNtupleIColumn(ntupleId, 2, h.parentID);
+  a->FillNtupleIColumn(ntupleId, 3, h.pdg);
+  a->FillNtupleSColumn(ntupleId, 4, h.particleName);
+  a->FillNtupleIColumn(ntupleId, 5, h.copyNo);
+  a->FillNtupleDColumn(ntupleId, 6, h.edep / MeV);
+  a->FillNtupleDColumn(ntupleId, 7, h.time / ns);
+  a->FillNtupleDColumn(ntupleId, 8, h.position.x() / mm);
+  a->FillNtupleDColumn(ntupleId, 9, h.position.y() / mm);
+  a->FillNtupleDColumn(ntupleId, 10, h.position.z() / mm);
+  a->FillNtupleSColumn(ntupleId, 11, h.physicalVolumeName);
+  a->FillNtupleSColumn(ntupleId, 12, h.logicalVolumeName);
+  a->AddNtupleRow(ntupleId);
 }
 
 void RunAction::WritePrimary(const PrimaryRecord& p) {
+  if (primaryNtupleId_ < 0) {
+    return;
+  }
+
   auto* a = G4AnalysisManager::Instance();
-  a->FillNtupleIColumn(kPrimaries, 0, p.eventID);
-  a->FillNtupleIColumn(kPrimaries, 1, p.primaryIndex);
-  a->FillNtupleIColumn(kPrimaries, 2, p.pdg);
-  a->FillNtupleDColumn(kPrimaries, 3, p.kineticEnergy / MeV);
-  a->FillNtupleDColumn(kPrimaries, 4, p.time / s);
-  a->FillNtupleDColumn(kPrimaries, 5, p.position.x() / m);
-  a->FillNtupleDColumn(kPrimaries, 6, p.position.y() / m);
-  a->FillNtupleDColumn(kPrimaries, 7, p.position.z() / m);
-  a->FillNtupleDColumn(kPrimaries, 8, p.direction.x());
-  a->FillNtupleDColumn(kPrimaries, 9, p.direction.y());
-  a->FillNtupleDColumn(kPrimaries, 10, p.direction.z());
-  a->AddNtupleRow(kPrimaries);
+  a->FillNtupleIColumn(primaryNtupleId_, 0, p.eventID);
+  a->FillNtupleIColumn(primaryNtupleId_, 1, p.primaryIndex);
+  a->FillNtupleIColumn(primaryNtupleId_, 2, p.pdg);
+  a->FillNtupleSColumn(primaryNtupleId_, 3, p.particleName);
+  a->FillNtupleDColumn(primaryNtupleId_, 4, p.kineticEnergy / MeV);
+  a->FillNtupleDColumn(primaryNtupleId_, 5, p.time / s);
+  a->FillNtupleDColumn(primaryNtupleId_, 6, p.position.x() / m);
+  a->FillNtupleDColumn(primaryNtupleId_, 7, p.position.y() / m);
+  a->FillNtupleDColumn(primaryNtupleId_, 8, p.position.z() / m);
+  const auto unitMomentum = p.direction.unit();
+
+  G4double momentumMagnitude = 0.0;
+  if (auto* definition = G4ParticleTable::GetParticleTable()->FindParticle(p.pdg)) {
+    const G4double mass = definition->GetPDGMass();
+    const G4double totalEnergy = p.kineticEnergy + mass;
+    const G4double p2 = totalEnergy * totalEnergy - mass * mass;
+    momentumMagnitude = p2 > 0.0 ? std::sqrt(p2) : 0.0;
+  }
+
+  const auto momentum = momentumMagnitude * unitMomentum;
+
+  a->FillNtupleDColumn(primaryNtupleId_, 9, unitMomentum.x());
+  a->FillNtupleDColumn(primaryNtupleId_, 10, unitMomentum.y());
+  a->FillNtupleDColumn(primaryNtupleId_, 11, unitMomentum.z());
+  a->FillNtupleDColumn(primaryNtupleId_, 12, momentum.x() / MeV);
+  a->FillNtupleDColumn(primaryNtupleId_, 13, momentum.y() / MeV);
+  a->FillNtupleDColumn(primaryNtupleId_, 14, momentum.z() / MeV);
+  a->AddNtupleRow(primaryNtupleId_);
 }
 
 void RunAction::RecordTrackEnd(const TrackEndRecord& r) {
+  if (!OutputConfig::GetWriteTrackEnd() || trackEndNtupleId_ < 0) {
+    return;
+  }
+
   auto* a = G4AnalysisManager::Instance();
-  a->FillNtupleIColumn(kTrackEnd, 0, r.eventID);
-  a->FillNtupleIColumn(kTrackEnd, 1, r.trackID);
-  a->FillNtupleIColumn(kTrackEnd, 2, r.parentID);
-  a->FillNtupleIColumn(kTrackEnd, 3, r.pdg);
-  a->FillNtupleDColumn(kTrackEnd, 4, r.startKineticEnergyMeV);
-  a->FillNtupleDColumn(kTrackEnd, 5, r.endKineticEnergyMeV);
-  a->FillNtupleDColumn(kTrackEnd, 6, r.xMm);
-  a->FillNtupleDColumn(kTrackEnd, 7, r.yMm);
-  a->FillNtupleDColumn(kTrackEnd, 8, r.zMm);
-  a->FillNtupleDColumn(kTrackEnd, 9, r.trackLengthMm);
-  a->FillNtupleDColumn(kTrackEnd, 10, r.globalTimeNs);
-  a->FillNtupleSColumn(kTrackEnd, 11, r.endProcess);
-  a->FillNtupleSColumn(kTrackEnd, 12, r.stopRegion);
-  a->FillNtupleIColumn(kTrackEnd, 13, r.stopHodoscopeID);
-  a->FillNtupleIColumn(kTrackEnd, 14, r.gapUpperHodoscopeID);
-  a->FillNtupleIColumn(kTrackEnd, 15, r.gapLowerHodoscopeID);
-  a->FillNtupleSColumn(kTrackEnd, 16, r.stopMaterial);
-  a->FillNtupleIColumn(kTrackEnd, 17, r.stopServerID);
-  a->FillNtupleSColumn(kTrackEnd, 18, r.stopServerType);
-  a->FillNtupleIColumn(kTrackEnd, 19, r.stopped ? 1 : 0);
-  a->FillNtupleIColumn(kTrackEnd, 20, r.stoppedBetweenHodoscopes ? 1 : 0);
-  a->FillNtupleIColumn(kTrackEnd, 21, (r.stopped && r.stopServerID >= 0) ? 1 : 0);
-  a->AddNtupleRow(kTrackEnd);
+  a->FillNtupleIColumn(trackEndNtupleId_, 0, r.eventID);
+  a->FillNtupleIColumn(trackEndNtupleId_, 1, r.trackID);
+  a->FillNtupleIColumn(trackEndNtupleId_, 2, r.parentID);
+  a->FillNtupleIColumn(trackEndNtupleId_, 3, r.pdg);
+  a->FillNtupleSColumn(trackEndNtupleId_, 4, r.particleName);
+  a->FillNtupleDColumn(trackEndNtupleId_, 5, r.startKineticEnergyMeV);
+  a->FillNtupleDColumn(trackEndNtupleId_, 6, r.endKineticEnergyMeV);
+  a->FillNtupleDColumn(trackEndNtupleId_, 7, r.xMm);
+  a->FillNtupleDColumn(trackEndNtupleId_, 8, r.yMm);
+  a->FillNtupleDColumn(trackEndNtupleId_, 9, r.zMm);
+  a->FillNtupleDColumn(trackEndNtupleId_, 10, r.trackLengthMm);
+  a->FillNtupleDColumn(trackEndNtupleId_, 11, r.globalTimeNs);
+  a->FillNtupleSColumn(trackEndNtupleId_, 12, r.endProcess);
+  a->FillNtupleSColumn(trackEndNtupleId_, 13, r.material);
+  a->FillNtupleSColumn(trackEndNtupleId_, 14, r.physicalVolume);
+  a->FillNtupleSColumn(trackEndNtupleId_, 15, r.logicalVolume);
+  a->FillNtupleIColumn(trackEndNtupleId_, 16, r.stopped ? 1 : 0);
+  a->AddNtupleRow(trackEndNtupleId_);
 }

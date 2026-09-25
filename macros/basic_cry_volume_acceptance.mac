@@ -1,0 +1,10 @@
+# CRY smoke test using the generic BasicDetector logical volume.
+/g4cosmic/output/file basic_cry_volume.root
+/run/initialize
+/g4cosmic/source cry
+/g4cosmic/cry/verbose 0
+/g4cosmic/cry/acceptanceMode volume
+/g4cosmic/cry/acceptanceVolume BasicScintillatorLV
+/g4cosmic/cry/maxAcceptanceTrials 10000
+/g4cosmic/cry/apply
+/run/beamOn 1000

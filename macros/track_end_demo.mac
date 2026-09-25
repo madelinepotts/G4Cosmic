@@ -1,0 +1,11 @@
+# Optional track-end output demo.
+# This creates the normal primaries + per-sensitive-volume hit trees and also adds track_end.
+/g4cosmic/output/file g4cosmic_track_end.root
+/g4cosmic/output/trackEnd true
+/g4cosmic/source gun
+/g4cosmic/gun/particle mu-
+/g4cosmic/gun/energy 4 GeV
+/g4cosmic/gun/position 0 0 2 m
+/g4cosmic/gun/direction 0 0 -1
+/run/initialize
+/run/beamOn 10

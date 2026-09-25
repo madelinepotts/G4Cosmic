@@ -42,3 +42,6 @@ Detector geometry should define logical volumes. Runtime macros should define ho
 The acceptance test uses conservative world-space bounding boxes for matching physical placements. That is a good first framework-level cut and works for enrichment/generation control. Exact solid-ray intersection can be added later if needed.
 
 `SteppingAction` still contains some WarpTrack-specific track-end classification inherited from the original project. That should move into the WarpTrack example or become an optional framework hook in a later stage.
+
+
+Stage 5 note: this track-end classification was removed from the G4Cosmic core; it can be restored later as a WarpTrack-only extension if needed.
