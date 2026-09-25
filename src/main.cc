@@ -1,8 +1,3 @@
-#include "G4Cosmic/Application.hh"
-#include "WarpTrackDetectorConstruction.hh"
-
-int main(int argc, char** argv) {
-  G4Cosmic::Application app;
-  app.SetDetector<WarpTrackExample::DetectorConstruction>();
-  return app.Run(argc, argv);
-}
+// The example application entry points now live under examples/*/src/main.cc.
+// CMake builds g4cosmic from examples/WarpTrack/src/main.cc and
+// g4cosmic_basic from examples/BasicDetector/src/main.cc.

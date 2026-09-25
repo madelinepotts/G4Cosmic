@@ -1,85 +1,91 @@
 #include "TrackingAction.hh"
 
+#include "OutputConfig.hh"
 #include "RunAction.hh"
 #include "TrackEndRecord.hh"
 
+#include "G4Event.hh"
+#include "G4Material.hh"
 #include "G4ParticleDefinition.hh"
+#include "G4RunManager.hh"
 #include "G4Step.hh"
 #include "G4StepPoint.hh"
 #include "G4SystemOfUnits.hh"
 #include "G4Track.hh"
+#include "G4TouchableHandle.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4LogicalVolume.hh"
 #include "G4VProcess.hh"
 
 TrackingAction::TrackingAction(RunAction* runAction)
-    : runAction_(runAction)
-{
+    : runAction_(runAction) {}
+
+void TrackingAction::PreUserTrackingAction(const G4Track* track) {
+  if (track == nullptr) {
+    startKineticEnergy_ = 0.0;
+    return;
+  }
+  startKineticEnergy_ = track->GetKineticEnergy();
 }
 
-void TrackingAction::PreUserTrackingAction(const G4Track* track)
-{
-    startKineticEnergy_ = track->GetKineticEnergy();
-}
+void TrackingAction::PostUserTrackingAction(const G4Track* track) {
+  if (!OutputConfig::GetWriteTrackEnd() || runAction_ == nullptr || track == nullptr) {
+    return;
+  }
 
-void TrackingAction::PostUserTrackingAction(const G4Track* track)
-{
-    if (runAction_ == nullptr || track == nullptr) {
-        return;
+  TrackEndRecord record;
+
+  if (const auto* runManager = G4RunManager::GetRunManager()) {
+    if (const auto* event = runManager->GetCurrentEvent()) {
+      record.eventID = event->GetEventID();
     }
+  }
 
-    TrackEndRecord record;
+  record.trackID = track->GetTrackID();
+  record.parentID = track->GetParentID();
 
-    record.eventID = currentEventID_;
+  if (const auto* particle = track->GetParticleDefinition()) {
+    record.pdg = particle->GetPDGEncoding();
+    record.particleName = particle->GetParticleName();
+  }
 
-    record.trackID = track->GetTrackID();
-    record.parentID = track->GetParentID();
+  record.startKineticEnergyMeV = startKineticEnergy_ / MeV;
+  record.endKineticEnergyMeV = track->GetKineticEnergy() / MeV;
 
-    const G4ParticleDefinition* particle =
-        track->GetParticleDefinition();
+  const auto& position = track->GetPosition();
+  record.xMm = position.x() / mm;
+  record.yMm = position.y() / mm;
+  record.zMm = position.z() / mm;
 
-    if (particle != nullptr) {
-        record.pdg = particle->GetPDGEncoding();
-    }
+  record.trackLengthMm = track->GetTrackLength() / mm;
+  record.globalTimeNs = track->GetGlobalTime() / ns;
+  record.stopped = track->GetKineticEnergy() <= 1.0 * eV;
 
-    record.startKineticEnergyMeV =
-        startKineticEnergy_ / MeV;
+  if (const auto* step = track->GetStep()) {
+    if (const auto* post = step->GetPostStepPoint()) {
+      if (const auto* process = post->GetProcessDefinedStep()) {
+        record.endProcess = process->GetProcessName();
+      }
 
-    record.endKineticEnergyMeV =
-        track->GetKineticEnergy() / MeV;
+      if (const auto* material = post->GetMaterial()) {
+        record.material = material->GetName();
+      }
 
-    const G4ThreeVector& position = track->GetPosition();
-
-    record.xMm = position.x() / mm;
-    record.yMm = position.y() / mm;
-    record.zMm = position.z() / mm;
-
-    record.trackLengthMm =
-        track->GetTrackLength() / mm;
-
-    record.globalTimeNs =
-        track->GetGlobalTime() / ns;
-
-    const G4Step* step = track->GetStep();
-
-    if (step != nullptr) {
-        const G4StepPoint* postStep = step->GetPostStepPoint();
-
-        if (postStep != nullptr) {
-            const G4VProcess* process =
-                postStep->GetProcessDefinedStep();
-
-            if (process != nullptr) {
-                record.endProcess = process->GetProcessName();
-            }
+      const auto touch = post->GetTouchableHandle();
+      if (touch) {
+        if (const auto* physical = touch->GetVolume()) {
+          record.physicalVolume = physical->GetName();
+          if (const auto* logical = physical->GetLogicalVolume()) {
+            record.logicalVolume = logical->GetName();
+          }
         }
+      }
     }
+  }
 
-    // A track with essentially no remaining kinetic energy has stopped.
-    //
-    // We keep the termination process separately because "stopped"
-    // alone does not tell us whether the particle ranged out, decayed,
-    // was captured, or underwent another interaction.
-    record.stopped =
-        track->GetKineticEnergy() <= 1.0 * eV;
+  if (record.material.empty() && track->GetMaterial() != nullptr) {
+    record.material = track->GetMaterial()->GetName();
+  }
 
-    runAction_->RecordTrackEnd(record);
+  runAction_->RecordTrackEnd(record);
 }

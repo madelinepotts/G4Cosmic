@@ -2,11 +2,13 @@
 
 #include "G4Event.hh"
 #include "G4EventManager.hh"
+#include "G4LogicalVolume.hh"
 #include "G4RunManager.hh"
 #include "G4Step.hh"
 #include "G4StepPoint.hh"
 #include "G4TouchableHistory.hh"
 #include "G4Track.hh"
+#include "G4VPhysicalVolume.hh"
 
 #include "HitRecord.hh"
 #include "RunAction.hh"
@@ -42,7 +44,15 @@ G4bool GenericSensitiveDetector::ProcessHits(G4Step* step, G4TouchableHistory*) 
 
   const auto touch = pre->GetTouchableHandle();
   if (touch) {
-    hit.channelID = touch->GetCopyNumber();
+    hit.copyNo = touch->GetCopyNumber();
+    const auto* physical = touch->GetVolume();
+    if (physical != nullptr) {
+      hit.physicalVolumeName = physical->GetName();
+      const auto* logical = physical->GetLogicalVolume();
+      if (logical != nullptr) {
+        hit.logicalVolumeName = logical->GetName();
+      }
+    }
   }
 
   hit.trackID = track->GetTrackID();
@@ -50,6 +60,7 @@ G4bool GenericSensitiveDetector::ProcessHits(G4Step* step, G4TouchableHistory*) 
 
   if (const auto* particle = track->GetParticleDefinition()) {
     hit.pdg = particle->GetPDGEncoding();
+    hit.particleName = particle->GetParticleName();
   }
 
   hit.edep = edep;

@@ -3,6 +3,7 @@
 #include "G4Cosmic/GenericSensitiveDetector.hh"
 
 #include "G4LogicalVolume.hh"
+#include "OutputConfig.hh"
 #include "G4SDManager.hh"
 #include "G4VSensitiveDetector.hh"
 
@@ -10,12 +11,14 @@ namespace G4Cosmic {
 
 G4VPhysicalVolume* DetectorConstruction::Construct() {
   sensitiveVolumes_.clear();
+  OutputConfig::ClearSensitiveVolumeNames();
   return BuildGeometry();
 }
 
 void DetectorConstruction::RegisterSensitiveVolume(G4LogicalVolume* volume) {
   if (volume != nullptr) {
     sensitiveVolumes_.push_back(volume);
+    OutputConfig::RegisterSensitiveVolumeName(volume->GetName());
   }
 }
 

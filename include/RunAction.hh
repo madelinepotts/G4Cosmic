@@ -5,6 +5,8 @@
 #include "PrimaryRecord.hh"
 #include "TrackEndRecord.hh"
 
+#include <map>
+
 class RunAction : public G4UserRunAction {
 public:
   RunAction();
@@ -16,4 +18,14 @@ public:
   void WriteHit(const HitRecord&) const;
   void WritePrimary(const PrimaryRecord&);
   void RecordTrackEnd(const TrackEndRecord&);
+
+private:
+  void CreatePrimaryNtuple();
+  void CreateSensitiveVolumeHitNtuples();
+  void CreateHitNtupleForLogicalVolume(const G4String& logicalVolumeName);
+  void CreateTrackEndNtuple();
+
+  G4int primaryNtupleId_ = -1;
+  G4int trackEndNtupleId_ = -1;
+  std::map<G4String, G4int> hitNtupleIdsByLogicalVolume_;
 };

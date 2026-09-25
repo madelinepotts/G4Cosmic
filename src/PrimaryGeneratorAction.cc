@@ -557,6 +557,7 @@ void PrimaryGeneratorAction::GenerateGunEvent(
         primary.eventID = event->GetEventID();
         primary.primaryIndex = 0;
         primary.pdg = gun_->GetParticleDefinition()->GetPDGEncoding();
+        primary.particleName = gun_->GetParticleDefinition()->GetParticleName();
         primary.kineticEnergy = gun_->GetParticleEnergy();
         primary.time = gun_->GetParticleTime();
         primary.position = gun_->GetParticlePosition();
@@ -625,6 +626,7 @@ void PrimaryGeneratorAction::GenerateSampleEvent(G4Event* event)
         primary.eventID = event->GetEventID();
         primary.primaryIndex = 0;
         primary.pdg = definition->GetPDGEncoding();
+        primary.particleName = definition->GetParticleName();
         primary.kineticEnergy = kineticEnergy;
         primary.time = 0.0;
         primary.position = position;
@@ -969,6 +971,7 @@ void PrimaryGeneratorAction::GenerateCRYEvent(
             primary.eventID = event->GetEventID();
             primary.primaryIndex = static_cast<int>(acceptedParticles);
             primary.pdg = pdg;
+            primary.particleName = definition->GetParticleName();
             primary.kineticEnergy = cryKE * MeV;
             primary.time = cryTime * s;
             primary.position = position;

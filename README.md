@@ -4,17 +4,25 @@ G4Cosmic is an early-stage reusable Geant4 framework for cosmic-ray detector
 simulation. It was extracted from a working CRY/Geant4 detector simulation and
 is being refactored in small, buildable stages.
 
-Stage 4 keeps the WarpTrack detector as the first example, but removes the last detector-specific CRY acceptance logic from the framework. CRY acceptance can now be configured against any logical volume name supplied by a macro.
+Stage 5 makes the framework base detector-agnostic. The core no longer knows
+about WarpTrack hodoscopes, server geometry, channel thresholds, detector labels,
+or detector-specific stopping classes. The base records generic Geant4 truth for
+generated primaries and steps in registered sensitive volumes:
+particles, copy numbers, volume names, positions, times, and energy deposition.
+Detector-specific meaning belongs in downstream detector code or analysis.
 
-## Stage 4 contents
+## Stage 5 contents
 
 - CMake project: `G4Cosmic`
-- Executable: `g4cosmic`
+- Framework library target: `G4Cosmic::core`
+- WarpTrack example executable: `g4cosmic`
+- Minimal generic example executable: `g4cosmic_basic`
 - Runtime command prefix: `/g4cosmic/...`
 - Default output: `g4cosmic.root`
 - Default CRY path: `external/cry`
 - Framework headers under `include/G4Cosmic/`
 - WarpTrack detector example under `examples/WarpTrack/`
+- Basic detector example under `examples/BasicDetector/`
 - JSON/code-generation geometry path removed from CMake
 - Optional Geant4 UI/visualization support for headless Linux/macOS/CI builds
 - Cross-platform CRY installer scripts
@@ -34,6 +42,7 @@ G4Cosmic/
 ├── STAGE2_CHANGES.md
 ├── STAGE3_CHANGES.md
 ├── STAGE4_CHANGES.md
+├── STAGE5_CHANGES.md
 ├── .gitignore
 ├── cry/
 │   └── cry_setup.txt
@@ -41,13 +50,23 @@ G4Cosmic/
 │   ├── README.md
 │   └── .gitkeep
 ├── examples/
+│   ├── BasicDetector/
+│   │   ├── include/
+│   │   │   └── BasicDetectorConstruction.hh
+│   │   └── src/
+│   │       ├── BasicDetectorConstruction.cc
+│   │       └── main.cc
 │   └── WarpTrack/
 │       ├── generated/
 │       │   └── DetectorGeometryGenerated.hh
 │       ├── include/
 │       │   ├── WarpTrackDetectorConstruction.hh
 │       │   └── WarpTrackSensitiveDetector.hh
+│       ├── macros/
+│       │   ├── muon_stop.mac
+│       │   └── proton_stop.mac
 │       └── src/
+│           ├── main.cc
 │           ├── WarpTrackDetectorConstruction.cc
 │           └── WarpTrackSensitiveDetector.cc
 ├── include/
@@ -115,11 +134,17 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
 cmake --build build --config Release
 ```
 
-Run:
+Run the WarpTrack example:
 
 ```powershell
 $env:GEANT4_DATA_DIR="E:\Geant4\Geant4-11.4\share\Geant4\data"
 .\build\Release\g4cosmic.exe .\macros\quick.mac
+```
+
+Run the minimal generic detector example:
+
+```powershell
+.\build\Release\g4cosmic_basic.exe .\macros\basic_quick.mac
 ```
 
 Set the thread count either as the second command-line argument:
@@ -147,10 +172,16 @@ cmake -S . -B build \
 cmake --build build -j
 ```
 
-Run:
+Run the WarpTrack example:
 
 ```bash
 ./build/g4cosmic macros/quick.mac
+```
+
+Run the minimal generic detector example:
+
+```bash
+./build/g4cosmic_basic macros/basic_quick.mac
 ```
 
 Set the thread count either as an argument:
@@ -186,6 +217,30 @@ When `G4COSMIC_ENABLE_UIVIS=OFF`, run with a macro file:
 ```
 
 Interactive mode is intentionally disabled in that configuration.
+
+## Writing detector geometry
+
+Detector projects write normal Geant4 C++ geometry by inheriting from
+`G4Cosmic::DetectorConstruction` and registering sensitive logical volumes from
+inside the geometry code:
+
+```cpp
+class MyDetector : public G4Cosmic::DetectorConstruction {
+protected:
+  G4VPhysicalVolume* BuildGeometry() override;
+};
+
+G4VPhysicalVolume* MyDetector::BuildGeometry() {
+  // Build world, materials, placements, detector volumes...
+  RegisterSensitiveVolume(myScintillatorLV);
+  return worldPV;
+}
+```
+
+The base framework does not assign hodoscope IDs, channel thresholds, trigger
+logic, or detector labels. Those are detector-specific concepts. The generic
+hit tree records Geant4 facts such as the hit volume, copy number, particle,
+energy deposition, time, and position.
 
 ## Source selection
 
@@ -267,10 +322,12 @@ least one generated primary intersects a selected logical volume:
 ```
 
 `acceptanceVolume` is a Geant4 logical-volume name. It also supports `*` and
-`?` wildcards, which is useful for the WarpTrack example because each bar has a
-name like `BottomScintillatorLV_0` or `TopScintillatorLV_3`. This replaces the
-old hard-coded `rack` and `hodoscope` acceptance modes. The framework no longer
-includes the WarpTrack generated geometry header in `PrimaryGeneratorAction`.
+`?` wildcards, which is useful for detector families with repeated logical
+volume names. The framework does not know what those volumes mean physically;
+it only tests particle rays against matching Geant4 placements.
+
+Detector-specific validation macros, such as old stopping studies, live under
+`examples/WarpTrack/macros/` rather than the framework-level `macros/` folder.
 
 ## Output
 
@@ -280,11 +337,67 @@ The default ROOT output file is:
 g4cosmic.root
 ```
 
-Current trees are still inherited from the original working simulation:
+By default, G4Cosmic writes:
 
-- `hits`
-- `primaries`
-- `track_end`
+- `primaries`: one global tree for generated primary-particle truth, including PDG code, particle name, kinetic energy, time, position, unit momentum direction, and momentum components.
+- One hit tree per registered sensitive logical volume.
 
-Those names will be cleaned up when the output layer becomes a real framework
-component.
+For example, if detector code creates a logical volume named `det_bar` and calls:
+
+```cpp
+RegisterSensitiveVolume(detBarLV);
+```
+
+then the output ROOT file contains a hit tree named:
+
+```text
+det_bar
+```
+
+Each per-volume hit tree contains generic step-level sensitive-volume energy deposition:
+
+```text
+event_id
+track_id
+parent_id
+pdg
+particle_name
+copy_no
+edep_MeV
+time_ns
+x_mm
+y_mm
+z_mm
+physical_volume
+logical_volume
+```
+
+Multiple physical placements of the same logical volume share that logical-volume tree; use `copy_no`, `physical_volume`, and `logical_volume` columns to distinguish individual placements.
+
+The hit trees are intentionally detector-agnostic. They do not contain WarpTrack hodoscope, layer, bar, threshold, trigger, or label fields. Downstream detectors can map copy numbers and volume names to their own detector channels in their own examples or analysis code.
+
+An optional generic `track_end` tree can be enabled from a macro:
+
+```text
+/g4cosmic/output/trackEnd true
+```
+
+`track_end` is disabled by default because many detector studies do not need per-track termination truth. When enabled, it records generic Geant4 terminal track information only: event/track IDs, PDG code, particle name, start/end kinetic energy, final position/time, track length, end process, material, physical/logical volume, and whether the track stopped. Detector-specific labels such as hodoscope IDs, channels, thresholds, trigger state, or stopping classes belong in downstream detector code or analysis, not in G4Cosmic core.
+
+
+## Primary tree schema
+
+Primary truth is stored in one global ROOT tree named `primaries`. Direction columns are named explicitly as a unit momentum vector to avoid confusion with momentum components:
+
+```text
+primaries
+├── event_id
+├── primary_index
+├── pdg
+├── particle_name
+├── kinetic_energy_MeV
+├── time_s
+├── x_m, y_m, z_m
+├── momentum_unit_x, momentum_unit_y, momentum_unit_z
+└── px_MeV_c, py_MeV_c, pz_MeV_c
+```
