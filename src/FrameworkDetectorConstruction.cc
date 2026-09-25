@@ -1,6 +1,7 @@
 #include "G4Cosmic/DetectorConstruction.hh"
 
 #include "G4Cosmic/GenericSensitiveDetector.hh"
+#include "G4Cosmic/JsonWriter.hh"
 
 #include "G4LogicalVolume.hh"
 #include "OutputConfig.hh"
@@ -8,6 +9,11 @@
 #include "G4VSensitiveDetector.hh"
 
 namespace G4Cosmic {
+
+
+void DetectorConstruction::AppendMetadata(JsonWriter& json) const {
+  json.Write("base", "G4Cosmic::DetectorConstruction");
+}
 
 G4VPhysicalVolume* DetectorConstruction::Construct() {
   sensitiveVolumes_.clear();

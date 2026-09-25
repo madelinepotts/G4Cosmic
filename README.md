@@ -714,3 +714,60 @@ edep_weighted_x_mm
 edep_weighted_y_mm
 edep_weighted_z_mm
 ```
+
+## Run metadata JSON sidecar
+
+Every G4Cosmic ROOT output now gets a JSON sidecar with the same base name:
+
+```text
+corsika_batch.root
+corsika_batch.json
+```
+
+The sidecar records generic provenance for the run, including start/end time,
+duration, command line, working directory, thread count, output filename, build
+version, git commit/branch/tag/dirty state, macro fingerprints, and source
+settings.  The macro section stores a SHA-256 fingerprint and a cleaned list of
+macro commands; it does not store the raw macro text.
+
+Example macro section:
+
+```json
+{
+  "macro": {
+    "entry_file": "macros/corsika_batch_demo.mac",
+    "files": [
+      {
+        "path": "macros/corsika_batch_demo.mac",
+        "sha256": "...",
+        "commands": [
+          "/g4cosmic/output/file corsika_batch.root",
+          "/g4cosmic/source corsika",
+          "/g4cosmic/corsika/generationMode batch",
+          "/run/beamOn 1000"
+        ]
+      }
+    ]
+  }
+}
+```
+
+To print the same cleaned macro command list to the console, add this to a
+macro:
+
+```text
+/g4cosmic/metadata/printMacroCommands true
+```
+
+The JSON is always written; the console printout is optional.
+
+Detector projects can append detector-specific metadata by overriding:
+
+```cpp
+void AppendMetadata(G4Cosmic::JsonWriter& json) const override;
+```
+
+inside a class derived from `G4Cosmic::DetectorConstruction`. Source classes can
+append source-specific metadata by overriding `PrimaryGenerator::AppendMetadata`.
+This keeps the core generic while allowing downstream detectors and sources to
+add their own provenance.

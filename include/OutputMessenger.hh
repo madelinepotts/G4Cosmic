@@ -18,4 +18,5 @@ private:
     G4UIcmdWithABool* trackEndCommand_ = nullptr;
     G4UIcmdWithABool* reducedHitsCommand_ = nullptr;
     G4UIcmdWithAString* reduceByCommand_ = nullptr;
+    G4UIcmdWithABool* printMacroCommandsCommand_ = nullptr;
 };

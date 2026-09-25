@@ -23,6 +23,7 @@ public:
 
     const char* Name() const override { return "corsika"; }
     void GeneratePrimaries(G4Event* event, RunAction* runAction) override;
+    void AppendMetadata(JsonWriter& json) const override;
 
 private:
     struct ParticleRecord {

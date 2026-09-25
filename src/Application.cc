@@ -1,7 +1,10 @@
 #include "G4Cosmic/Application.hh"
 
 #include "ActionInitialization.hh"
+#include "OutputConfig.hh"
 #include "OutputMessenger.hh"
+#include "G4Cosmic/DetectorConstruction.hh"
+#include "G4Cosmic/RunMetadata.hh"
 
 #include "FTFP_BERT.hh"
 #include "G4VModularPhysicsList.hh"
@@ -59,13 +62,25 @@ int Application::Run(int argc, char** argv) const {
   std::cout << "G4Cosmic: Geant4 was built without multithreading; using serial mode.\n";
 #endif
 
+  G4Cosmic::RunMetadata::Instance().Begin(argc, argv, RequestedThreads(argc, argv));
+  if (argc > 1) {
+    G4Cosmic::RunMetadata::Instance().SetMacroFile(argv[1]);
+  }
+
   if (!detectorFactory_) {
     std::cerr << "G4Cosmic: no detector construction was configured.\n";
     delete runManager;
     return 1;
   }
 
-  runManager->SetUserInitialization(detectorFactory_());
+  auto* detector = detectorFactory_();
+  if (auto* g4cosmicDetector = dynamic_cast<G4Cosmic::DetectorConstruction*>(detector)) {
+    G4Cosmic::RunMetadata::Instance().SetDetectorMetadataContributor(
+        [g4cosmicDetector](G4Cosmic::JsonWriter& json) {
+          g4cosmicDetector->AppendMetadata(json);
+        });
+  }
+  runManager->SetUserInitialization(detector);
   G4EmParameters::Instance()->SetVerbose(0);
   G4EmParameters::Instance()->SetWorkerVerbose(0);
 
@@ -95,6 +110,11 @@ int Application::Run(int argc, char** argv) const {
     return 1;
 #endif
   }
+
+  if (G4Cosmic::RunMetadata::Instance().GetPrintMacroCommands()) {
+    G4Cosmic::RunMetadata::Instance().PrintMacroCommands(std::cout);
+  }
+  G4Cosmic::RunMetadata::Instance().WriteSidecar(std::string(OutputConfig::GetFileName()));
 
   delete runManager;
   return 0;

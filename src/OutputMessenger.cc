@@ -1,5 +1,6 @@
 #include "OutputMessenger.hh"
 #include "OutputConfig.hh"
+#include "G4Cosmic/RunMetadata.hh"
 #include "G4StateManager.hh"
 #include "G4Threading.hh"
 #include "G4UIcmdWithABool.hh"
@@ -40,12 +41,19 @@ OutputMessenger::OutputMessenger() {
     reduceByCommand_->SetGuidance("Aliases: particleTypeCopyNo, pdgCopyNo, volume.");
     reduceByCommand_->SetParameterName("mode", false);
     reduceByCommand_->AvailableForStates(G4State_PreInit, G4State_Idle);
+
+    printMacroCommandsCommand_ = new G4UIcmdWithABool("/g4cosmic/metadata/printMacroCommands", this);
+    printMacroCommandsCommand_->SetGuidance("Print the cleaned macro command list recorded in the JSON sidecar.");
+    printMacroCommandsCommand_->SetGuidance("Default: false. The JSON sidecar always records macro commands.");
+    printMacroCommandsCommand_->SetParameterName("enabled", false);
+    printMacroCommandsCommand_->AvailableForStates(G4State_PreInit, G4State_Idle);
 }
 OutputMessenger::~OutputMessenger() {
     delete fileCommand_;
     delete trackEndCommand_;
     delete reducedHitsCommand_;
     delete reduceByCommand_;
+    delete printMacroCommandsCommand_;
 }
 
 void OutputMessenger::SetNewValue(G4UIcommand* command, G4String value) {
@@ -91,5 +99,17 @@ void OutputMessenger::SetNewValue(G4UIcommand* command, G4String value) {
                 G4cout << "G4Cosmic reduced-hit mode: " << after << G4endl;
             }
         }
+        return;
+    }
+
+    if (command == printMacroCommandsCommand_) {
+        G4Cosmic::RunMetadata::Instance().SetPrintMacroCommands(
+            printMacroCommandsCommand_->GetNewBoolValue(value));
+        if (IsMasterThread()) {
+            G4cout << "G4Cosmic metadata macro-command printout: "
+                   << (G4Cosmic::RunMetadata::Instance().GetPrintMacroCommands() ? "enabled" : "disabled")
+                   << G4endl;
+        }
+        return;
     }
 }

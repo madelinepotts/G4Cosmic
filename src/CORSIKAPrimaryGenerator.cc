@@ -1,5 +1,8 @@
 #include "G4Cosmic/CORSIKAPrimaryGenerator.hh"
 
+#include "G4Cosmic/JsonWriter.hh"
+#include "G4Cosmic/RunMetadata.hh"
+
 #include "PrimaryRecord.hh"
 #include "RunAction.hh"
 
@@ -1028,6 +1031,54 @@ CORSIKAPrimaryGenerator::SelectShower(G4int eventId) const
         " loaded/generated shower trial(s) for logical-volume pattern '" +
         std::string(acceptanceVolume_) +
         "'. Generate more showers, increase /g4cosmic/corsika/maxAcceptanceTrials, or choose a larger acceptance volume.");
+}
+
+
+void CORSIKAPrimaryGenerator::AppendMetadata(JsonWriter& json) const
+{
+    json.Write("type", "corsika");
+    json.Write("generation_mode", std::string(generationMode_));
+    json.Write("cache_file", std::string(cacheFile_));
+    json.Write("cache_file_sha256", RunMetadata::Sha256File(std::string(cacheFile_)));
+    json.Write("reuse_cache", reuseCache_ != 0);
+    json.Write("regenerate", regenerate_ != 0);
+    json.Write("events_per_batch", eventsPerBatch_);
+    json.Write("runner", std::string(runner_));
+    json.Write("runner_script", std::string(runnerScript_));
+    if (!command_.empty()) {
+        json.Write("legacy_command", std::string(command_));
+    }
+    json.Write("expanded_command", ExpandedCommand());
+
+    json.Write("primary", std::string(primary_));
+    json.Write("energy_mode", std::string(energyMode_));
+    json.Write("min_energy_GeV", minEnergy_ / GeV);
+    json.Write("max_energy_GeV", maxEnergy_ / GeV);
+    json.Write("energy_GeV", monoEnergy_ / GeV);
+    json.Write("spectral_index", spectralIndex_);
+    json.Write("min_zenith_deg", minZenith_ / deg);
+    json.Write("max_zenith_deg", maxZenith_ / deg);
+    json.Write("min_azimuth_deg", minAzimuth_ / deg);
+    json.Write("max_azimuth_deg", maxAzimuth_ / deg);
+
+    json.Write("id_scheme", std::string(idScheme_));
+    json.Write("position_unit", std::string(positionUnit_));
+    json.Write("momentum_unit", std::string(momentumUnit_));
+    json.Write("time_unit", std::string(timeUnit_));
+    json.Write("loop", loop_ != 0);
+    json.Write("acceptance_mode", std::string(acceptanceMode_));
+    if (!acceptanceVolume_.empty()) {
+        json.Write("acceptance_volume", std::string(acceptanceVolume_));
+    }
+    json.Write("max_acceptance_trials", maxAcceptanceTrials_);
+    json.Write("loaded_showers", static_cast<int>(showers_.size()));
+    json.Write("skipped_lines", skippedLines_);
+    json.Write("cache_generated_this_process", gGeneratedBatchCount > 0);
+    json.Write("generated_batch_count", gGeneratedBatchCount);
+    if (!gGeneratedBatchCommand.empty()) {
+        json.Write("last_generated_command", std::string(gGeneratedBatchCommand));
+        json.Write("last_generated_cache_file", std::string(gGeneratedBatchCacheFile));
+    }
 }
 
 void CORSIKAPrimaryGenerator::GeneratePrimaries(G4Event* event, RunAction* runAction)

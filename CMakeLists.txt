@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(G4Cosmic VERSION 0.8.2 LANGUAGES CXX)
+project(G4Cosmic VERSION 0.8.3 LANGUAGES CXX)
 
 # =============================================================================
 # C++ standard
@@ -9,6 +9,51 @@ project(G4Cosmic VERSION 0.8.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+
+# =============================================================================
+# Build metadata
+# =============================================================================
+
+set(G4COSMIC_GIT_COMMIT "unknown")
+set(G4COSMIC_GIT_BRANCH "unknown")
+set(G4COSMIC_GIT_TAG "")
+set(G4COSMIC_GIT_DIRTY "0")
+
+find_package(Git QUIET)
+if(Git_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --short=12 HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE G4COSMIC_GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE G4COSMIC_GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE G4COSMIC_GIT_TAG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" status --porcelain
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE G4COSMIC_GIT_STATUS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT "${G4COSMIC_GIT_STATUS}" STREQUAL "")
+        set(G4COSMIC_GIT_DIRTY "1")
+    endif()
+endif()
 
 # =============================================================================
 # Geant4
@@ -24,6 +69,13 @@ else()
 endif()
 
 include(${Geant4_USE_FILE})
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/G4Cosmic/BuildInfo.hh.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/G4Cosmic/BuildInfo.hh"
+    @ONLY
+)
+
 
 # =============================================================================
 # CRY
@@ -78,8 +130,11 @@ set(G4COSMIC_CORE_SOURCES
     src/GunPrimaryGenerator.cc
     src/OutputConfig.cc
     src/OutputMessenger.cc
+    src/JsonWriter.cc
+    src/PrimaryGenerator.cc
     src/PrimaryGeneratorAction.cc
     src/RunAction.cc
+    src/RunMetadata.cc
     src/SamplePrimaryGenerator.cc
     src/TrackingAction.cc
 )
@@ -98,6 +153,7 @@ add_library(G4Cosmic::core ALIAS g4cosmic_core)
 target_include_directories(g4cosmic_core
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated"
         "${CRY_ROOT}/src"
 )
 
