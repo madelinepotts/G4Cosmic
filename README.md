@@ -4,14 +4,14 @@ G4Cosmic is an early-stage reusable Geant4 framework for cosmic-ray detector
 simulation. It was extracted from a working CRY/Geant4 detector simulation and
 is being refactored in small, buildable stages.
 
-Stage 7 keeps the framework detector-agnostic while splitting primary generation into interchangeable generator classes. The core no longer knows
+Stage 8 keeps the framework detector-agnostic while adding a CORSIKA shower source as another interchangeable generator class. CORSIKA can parse a prepared text `.dat` shower list or generate a batch/cache through an external CORSIKA 8 command/wrapper, then inject one complete shower into each Geant4 event. The core no longer knows
 about WarpTrack hodoscopes, server geometry, channel thresholds, detector labels,
 or detector-specific stopping classes. The base records generic Geant4 truth for
 generated primaries and steps in registered sensitive volumes:
 particles, copy numbers, volume names, positions, times, and energy deposition.
 Detector-specific meaning belongs in downstream detector code or analysis.
 
-## Stage 7 contents
+## Stage 8 contents
 
 - CMake project: `G4Cosmic`
 - Framework library target: `G4Cosmic::core`
@@ -26,7 +26,10 @@ Detector-specific meaning belongs in downstream detector code or analysis.
 - JSON/code-generation geometry path removed from CMake
 - Optional Geant4 UI/visualization support for headless Linux/macOS/CI builds
 - Cross-platform CRY installer scripts
+- Best-effort CORSIKA 8 installer scripts under `scripts/`
 - CRY remains a source-plane cosmic-ray generator by default; optional logical-volume acceptance is available for enrichment studies
+- CORSIKA shower source mode with `file` and `batch` generation modes
+- Optional CORSIKA logical-volume acceptance with the same enrichment pattern used by CRY
 
 The WarpTrack example still uses the generated `WarpTrackGeometry` namespace.
 That header is now treated as a normal C++ geometry artifact owned by the
@@ -73,6 +76,9 @@ G4Cosmic/
 ├── STAGE3_CHANGES.md
 ├── STAGE4_CHANGES.md
 ├── STAGE5_CHANGES.md
+├── STAGE6_CHANGES.md
+├── STAGE7_CHANGES.md
+├── STAGE8_CHANGES.md
 ├── .gitignore
 ├── cry/
 │   └── cry_setup.txt
@@ -86,6 +92,8 @@ G4Cosmic/
 │   │   └── src/
 │   │       ├── BasicDetectorConstruction.cc
 │   │       └── main.cc
+│   ├── corsika/
+│   │   └── example_particles.dat
 │   └── WarpTrack/
 │       ├── generated/
 │       │   └── DetectorGeometryGenerated.hh
@@ -108,7 +116,9 @@ G4Cosmic/
 ├── macros/
 ├── scripts/
 │   ├── install_cry.ps1
-│   └── install_cry.sh
+│   ├── install_cry.sh
+│   ├── install_corsika8.ps1
+│   └── install_corsika8.sh
 └── src/
 ```
 
@@ -120,6 +130,7 @@ You need:
 - A C++17 compiler
 - Geant4 11.x
 - CRY source and data files
+- Optional: CORSIKA 8, or another CORSIKA runner/wrapper, for `/g4cosmic/corsika/generationMode batch`
 
 ROOT output is written through Geant4's analysis manager in this stage, so the
 exact ROOT setup follows your Geant4 build.
@@ -151,6 +162,27 @@ cmake -S . -B build -DCRY_ROOT=/path/to/cry
 
 The downloaded `external/cry` directory is ignored by Git. The repository keeps
 only `external/.gitkeep`, `external/README.md`, and the installer scripts.
+
+## Install CORSIKA 8 for on-the-fly showers
+
+Stage 8 does not link G4Cosmic directly against CORSIKA. Instead, batch mode calls a CORSIKA runner or wrapper, the runner writes a simple observation-level text `.dat` shower list, and G4Cosmic injects those particles into the current Geant4 run. This keeps the framework behavior parallel to CRY while avoiding hard-coding one upstream CORSIKA application or output format.
+
+Install CORSIKA 8 from the repository root on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_corsika8.ps1
+```
+
+Install CORSIKA 8 on Linux or macOS:
+
+```bash
+chmod +x ./scripts/install_corsika8.sh
+./scripts/install_corsika8.sh
+```
+
+The scripts clone CORSIKA 8 into `external/corsika8/src`, build it in `external/corsika8/build`, and install it into `external/corsika8/install`. CORSIKA is a large external codebase with its own dependencies, so treat these scripts as a project-local bootstrap rather than a replacement for upstream CORSIKA documentation.
+
+The downloaded `external/corsika8` directory is ignored by Git.
 
 ## Configure and build: Windows
 
@@ -302,8 +334,152 @@ export G4COSMIC_SOURCE=gun
 Supported source names in this stage are:
 
 - `cry`
+- `corsika`
 - `gun`
 - `sample`
+
+## CORSIKA shower source
+
+Stage 8 adds a CORSIKA source mode that behaves like CRY at the G4Cosmic framework level: it provides one air-shower event containing one or more primary particles, can optionally apply a logical-volume acceptance filter, and writes the same generic `primaries` and sensitive-volume ROOT trees as the other sources.
+
+```text
+/g4cosmic/source corsika
+```
+
+The natural unit is a full shower, not an individual particle:
+
+```text
+one CORSIKA shower -> one Geant4 event -> one or more Geant4 primary particles
+```
+
+### Generation modes
+
+Stage 8 supports two CORSIKA generation modes:
+
+```text
+/g4cosmic/corsika/generationMode file
+/g4cosmic/corsika/generationMode batch
+```
+
+- `file` parses an existing G4Cosmic/CORSIKA text `.dat` shower list.
+- `batch` runs an external CORSIKA 8 wrapper, writes a fresh cache `.dat` file by default, then consumes the cached showers. Set `/g4cosmic/corsika/reuseCache 1` only when you intentionally want to reuse a cache from an earlier run.
+
+The older commands `/g4cosmic/corsika/inputMode file` and `/g4cosmic/corsika/inputMode command` are kept as compatibility aliases. `inputMode command` maps to `generationMode batch`.
+
+### Direct `.dat` parsing
+
+File mode reads a whitespace text `.dat` shower list:
+
+```text
+/g4cosmic/source corsika
+/g4cosmic/corsika/generationMode file
+/g4cosmic/corsika/cacheFile examples/corsika/example_particles.dat
+/g4cosmic/corsika/idScheme corsika
+/g4cosmic/corsika/positionUnit m
+/g4cosmic/corsika/momentumUnit GeV
+/g4cosmic/corsika/timeUnit ns
+/g4cosmic/corsika/apply
+/run/beamOn 20
+```
+
+The parsed text format is:
+
+```text
+event_id particle_id x y z px py pz time
+```
+
+Lines with the same contiguous `event_id` are injected into one Geant4 event as multiple primaries. The `particle_id` column can be either PDG codes or common CORSIKA particle IDs:
+
+```text
+/g4cosmic/corsika/idScheme pdg
+/g4cosmic/corsika/idScheme corsika
+```
+
+This is a G4Cosmic interchange `.dat` format for CORSIKA observation-level particles. Native binary CORSIKA output should be converted to this format by a CORSIKA 8 wrapper/converter.
+
+### Batch/cache CORSIKA 8 generation
+
+Batch mode lets G4Cosmic generate showers on demand, write them to a cache file, then consume one complete shower per Geant4 event. By default, batch mode regenerates this cache when the program starts; it does not reuse old cache files unless requested. The external command can call an installed CORSIKA 8 application, a shell script, a batch file, or a Python wrapper. The command should write the same text `.dat` shower-list format to `__output__`. Do not use curly-brace tokens like `{events}` in Geant4 macros, because Geant4 expands `{name}` as a UI alias before G4Cosmic receives the command.
+
+```text
+/g4cosmic/source corsika
+/g4cosmic/corsika/generationMode batch
+/g4cosmic/corsika/cacheFile corsika_cache.dat
+/g4cosmic/corsika/eventsPerBatch 1000
+
+/g4cosmic/corsika/primary proton
+/g4cosmic/corsika/energyMode powerLaw
+/g4cosmic/corsika/minEnergy 1 TeV
+/g4cosmic/corsika/maxEnergy 100 TeV
+/g4cosmic/corsika/spectralIndex 2.7
+/g4cosmic/corsika/minZenith 0 deg
+/g4cosmic/corsika/maxZenith 60 deg
+/g4cosmic/corsika/minAzimuth 0 deg
+/g4cosmic/corsika/maxAzimuth 360 deg
+
+/g4cosmic/corsika/runner python
+/g4cosmic/corsika/runnerScript examples/corsika/demo_external_corsika_runner.py
+/g4cosmic/corsika/apply
+/run/beamOn 1000
+```
+
+Optional reproducibility mode:
+
+```text
+/g4cosmic/corsika/reuseCache 1
+```
+
+Use this only when you intentionally want to rerun Geant4 on an existing shower cache instead of generating a new batch. Normal batch demos omit it.
+
+Supported command tokens are:
+
+```text
+__output__ __cache__ __events__ __batch__
+__primary__ __energy_mode__
+__min_energy_gev__ __max_energy_gev__ __energy_gev__ __spectral_index__
+__min_zenith_deg__ __max_zenith_deg__ __min_azimuth_deg__ __max_azimuth_deg__
+```
+
+The spectral index does not replace the energy range. For `energyMode powerLaw`, energies are sampled over `[minEnergy, maxEnergy]` with `dN/dE proportional to E^-spectralIndex`. For `energyMode mono`, the runner should use `/g4cosmic/corsika/energy`.
+
+`examples/corsika/demo_external_corsika_runner.py` is only a toy plumbing test. Replace it with a wrapper around a real installed CORSIKA 8 application and converter.
+
+`corsika_batch_demo.mac` is the external-runner demo. Older duplicate `corsika_external_demo.mac` and `corsika_external_volume_acceptance.mac` macros were removed because they were identical to the batch macros.
+
+
+### CORSIKA volume acceptance
+
+CORSIKA acceptance mirrors CRY acceptance. By default it uses every generated shower:
+
+```text
+/g4cosmic/corsika/acceptanceMode all
+```
+
+For enriched detector samples, G4Cosmic can select loaded/generated showers whose primary rays intersect a detector logical volume. The whole accepted shower is injected into Geant4:
+
+```text
+/run/initialize
+/g4cosmic/source corsika
+/g4cosmic/corsika/generationMode batch
+/g4cosmic/corsika/cacheFile corsika_cache_acceptance.dat
+/g4cosmic/corsika/eventsPerBatch 10000
+/g4cosmic/corsika/command <your-corsika8-wrapper> --events __events__ --output __output__
+/g4cosmic/corsika/acceptanceMode volume
+/g4cosmic/corsika/acceptanceVolume ScintillatorBarLV
+/g4cosmic/corsika/maxAcceptanceTrials 10000
+/g4cosmic/corsika/apply
+/run/beamOn 1000
+```
+
+Like CRY acceptance, this is an enrichment tool, not an absolute-rate calculation.
+
+Example macros:
+
+```text
+macros/corsika_dat_file_demo.mac
+macros/corsika_batch_demo.mac
+macros/corsika_batch_volume_acceptance.mac
+```
 
 ## CRY configuration
 
@@ -438,6 +614,7 @@ Built-in source modes are:
 
 ```text
 /g4cosmic/source cry
+/g4cosmic/source corsika
 /g4cosmic/source gun
 /g4cosmic/source sample
 ```
@@ -446,13 +623,14 @@ The built-in generator classes are:
 
 ```text
 G4Cosmic::CRYPrimaryGenerator
+G4Cosmic::CORSIKAPrimaryGenerator
 G4Cosmic::GunPrimaryGenerator
 G4Cosmic::SamplePrimaryGenerator
 ```
 
-CRY commands remain under `/g4cosmic/cry/...`, and randomized sample-source
-commands remain under `/g4cosmic/sample/...`. The separation is intentionally
-preparing for CORSIKA: a future CORSIKA reader should be another
+CRY commands remain under `/g4cosmic/cry/...`, CORSIKA commands
+remain under `/g4cosmic/corsika/...`, and randomized sample-source commands
+remain under `/g4cosmic/sample/...`. Each source is a separate
 `G4Cosmic::PrimaryGenerator` implementation, not a detector-specific special
 case.
 

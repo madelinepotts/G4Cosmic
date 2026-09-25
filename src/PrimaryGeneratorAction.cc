@@ -1,5 +1,6 @@
 #include "PrimaryGeneratorAction.hh"
 
+#include "G4Cosmic/CORSIKAPrimaryGenerator.hh"
 #include "G4Cosmic/CRYPrimaryGenerator.hh"
 #include "G4Cosmic/GunPrimaryGenerator.hh"
 #include "G4Cosmic/PrimaryGenerator.hh"
@@ -32,6 +33,7 @@ PrimaryGeneratorAction::PrimaryGeneratorAction(RunAction* runAction)
     }
 
     RegisterGenerator(std::make_unique<G4Cosmic::CRYPrimaryGenerator>());
+    RegisterGenerator(std::make_unique<G4Cosmic::CORSIKAPrimaryGenerator>());
     RegisterGenerator(std::make_unique<G4Cosmic::GunPrimaryGenerator>());
     RegisterGenerator(std::make_unique<G4Cosmic::SamplePrimaryGenerator>());
 
@@ -63,7 +65,7 @@ void PrimaryGeneratorAction::ConfigureMessenger()
         this, "/g4cosmic/", "G4Cosmic primary-source controls");
     messenger_->DeclareMethod(
         "source", &PrimaryGeneratorAction::SetSource,
-        "Primary source: cry, gun, or sample.");
+        "Primary source: cry, corsika, gun, or sample.");
 }
 
 void PrimaryGeneratorAction::SetSource(const G4String& source)

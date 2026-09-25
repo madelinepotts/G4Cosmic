@@ -1,0 +1,15 @@
+/g4cosmic/output/file corsika_dat_reduced.root
+/g4cosmic/output/reducedHits true
+/g4cosmic/output/reduceBy copyNo
+
+/g4cosmic/source corsika
+/g4cosmic/corsika/generationMode file
+/g4cosmic/corsika/cacheFile examples/corsika/example_particles.dat
+/g4cosmic/corsika/idScheme corsika
+/g4cosmic/corsika/positionUnit m
+/g4cosmic/corsika/momentumUnit GeV
+/g4cosmic/corsika/timeUnit ns
+/g4cosmic/corsika/loop 1
+/g4cosmic/corsika/apply
+
+/run/beamOn 20

@@ -27,7 +27,7 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
       nullptr,
       false,
       0,
-      true);
+      false);
 
   worldLV->SetVisAttributes(G4VisAttributes::GetInvisible());
 
@@ -54,7 +54,7 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
       worldLV,
       false,
       0,
-      true);
+      false);
 
   // The framework handles the sensitive detector implementation. The example
   // only declares which logical volume is sensitive.

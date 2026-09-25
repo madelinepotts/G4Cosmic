@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(G4Cosmic VERSION 0.7.2 LANGUAGES CXX)
+project(G4Cosmic VERSION 0.8.2 LANGUAGES CXX)
 
 # =============================================================================
 # C++ standard
@@ -70,6 +70,7 @@ endif()
 set(G4COSMIC_CORE_SOURCES
     src/ActionInitialization.cc
     src/Application.cc
+    src/CORSIKAPrimaryGenerator.cc
     src/CRYPrimaryGenerator.cc
     src/EventAction.cc
     src/FrameworkDetectorConstruction.cc
@@ -150,6 +151,17 @@ function(g4cosmic_copy_runtime_files target_name)
                 "$<TARGET_FILE_DIR:${target_name}>/cry/cry_setup.txt"
         COMMENT "Copying CRY configuration for ${target_name}"
     )
+
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/corsika")
+        add_custom_command(
+            TARGET ${target_name}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_CURRENT_SOURCE_DIR}/examples/corsika"
+                    "$<TARGET_FILE_DIR:${target_name}>/examples/corsika"
+            COMMENT "Copying CORSIKA example input files for ${target_name}"
+        )
+    endif()
 endfunction()
 
 # =============================================================================

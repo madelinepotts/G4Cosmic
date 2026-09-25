@@ -8,6 +8,7 @@
 #include "G4RunManagerFactory.hh"
 #include "G4VUserDetectorConstruction.hh"
 #include "G4UImanager.hh"
+#include "G4EmParameters.hh"
 #ifdef G4MULTITHREADED
 #include "G4MTRunManager.hh"
 #endif
@@ -65,6 +66,9 @@ int Application::Run(int argc, char** argv) const {
   }
 
   runManager->SetUserInitialization(detectorFactory_());
+  G4EmParameters::Instance()->SetVerbose(0);
+  G4EmParameters::Instance()->SetWorkerVerbose(0);
+
   auto* physicsList = new FTFP_BERT();
   physicsList->SetVerboseLevel(0);
   runManager->SetUserInitialization(physicsList);
