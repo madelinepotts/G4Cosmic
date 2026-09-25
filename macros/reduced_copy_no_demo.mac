@@ -1,0 +1,6 @@
+# Demo: keep raw hit trees and add per-copy-number reduced trees.
+/g4cosmic/output/file reduced_copy_no.root
+/g4cosmic/output/reducedHits true
+/g4cosmic/output/reduceBy copyNo
+/g4cosmic/source gun
+/run/beamOn 100

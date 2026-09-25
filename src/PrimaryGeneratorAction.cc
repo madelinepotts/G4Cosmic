@@ -426,7 +426,7 @@ void PrimaryGeneratorAction::RefreshCRYAcceptanceVolumes() const
         throw std::runtime_error(
             "No physical placements were found for CRY acceptance logical volume pattern '" +
             std::string(cryAcceptanceVolume_) +
-            "'. Use an existing G4LogicalVolume name, or a wildcard such as '*ScintillatorLV_*'.");
+            "'. Use an existing G4LogicalVolume name, or a wildcard such as 'ScintillatorBarLV'.");
     }
 
     G4cout << "G4Cosmic: CRY acceptance uses "

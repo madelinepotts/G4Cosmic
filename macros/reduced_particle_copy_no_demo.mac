@@ -1,0 +1,6 @@
+# Demo: keep raw hit trees and add reduced trees grouped by particle type and copy number.
+/g4cosmic/output/file reduced_particle_copy_no.root
+/g4cosmic/output/reducedHits true
+/g4cosmic/output/reduceBy particleCopyNo
+/g4cosmic/source gun
+/run/beamOn 100

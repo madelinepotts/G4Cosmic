@@ -291,12 +291,13 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
       auto *solid =
           makePrism(p, base, layerHeight, length, kScintillatorAirWrap);
 
-      const std::string name =
-          (bottom ? "Bottom" : "Top") +
-          std::string("ScintillatorLV_") +
-          std::to_string(p.bar);
-
-      auto *lv = new G4LogicalVolume(solid, scint, name);
+      // All scintillator bar solids share one logical-volume name for output.
+      // Each bar is still represented by its own G4LogicalVolume object because
+      // the generated tessellated/extruded solids can differ by layer, edge
+      // shape, and orientation. Sharing the logical-volume *name* makes
+      // G4Cosmic write one hit tree, while the placement copy number below
+      // preserves the detector/channel identity.
+      auto *lv = new G4LogicalVolume(solid, scint, "ScintillatorBarLV");
 
       if (p.sensitive) {
         RegisterSensitiveVolume(lv);

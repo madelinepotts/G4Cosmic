@@ -3,16 +3,15 @@
 #include "G4UserEventAction.hh"
 
 class G4Event;
-class TrackingAction;
+class RunAction;
 
-class EventAction : public G4UserEventAction
-{
+class EventAction : public G4UserEventAction {
 public:
-    explicit EventAction(TrackingAction* trackingAction);
-    ~EventAction() override = default;
+  explicit EventAction(RunAction* runAction);
+  ~EventAction() override = default;
 
-    void BeginOfEventAction(const G4Event* event) override;
+  void EndOfEventAction(const G4Event*) override;
 
 private:
-    TrackingAction* trackingAction_ = nullptr;
+  RunAction* runAction_ = nullptr;
 };

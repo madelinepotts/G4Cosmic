@@ -5,7 +5,7 @@
 /g4cosmic/source cry
 /g4cosmic/cry/verbose 0
 /g4cosmic/cry/acceptanceMode volume
-/g4cosmic/cry/acceptanceVolume *ScintillatorLV_*
+/g4cosmic/cry/acceptanceVolume ScintillatorBarLV
 /g4cosmic/cry/maxAcceptanceTrials 10000
 /g4cosmic/cry/apply
 /run/beamOn 10000

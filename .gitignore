@@ -41,7 +41,6 @@ Thumbs.db
 *.swo
 .vscode/
 .idea/
-
 # Downloaded third-party dependencies
 .download/
 external/cry/
