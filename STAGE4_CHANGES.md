@@ -12,14 +12,14 @@ Stage 4 makes the CRY acceptance filter framework-level instead of WarpTrack-spe
 
 ```text
 /g4cosmic/cry/acceptanceMode volume
-/g4cosmic/cry/acceptanceVolume *ScintillatorLV_*
+/g4cosmic/cry/acceptanceVolume ScintillatorBarLV
 /g4cosmic/cry/maxAcceptanceTrials 10000
 ```
 
 - `acceptanceVolume` accepts either an exact Geant4 logical-volume name or a simple wildcard pattern:
   - `ScintillatorLV`
-  - `BottomScintillatorLV_0`
-  - `*ScintillatorLV_*`
+  - `ScintillatorBarLV`
+  - `ScintillatorBarLV`
 - At runtime, G4Cosmic traverses the constructed Geant4 world, finds physical placements whose logical-volume name matches the configured pattern, computes their world-space bounding boxes, and accepts CRY primaries whose forward ray intersects one of those boxes.
 - Added retry protection so volume-conditioned CRY generation cannot loop forever:
 

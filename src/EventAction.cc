@@ -1,19 +1,10 @@
 #include "EventAction.hh"
+#include "RunAction.hh"
 
-#include "TrackingAction.hh"
+EventAction::EventAction(RunAction* runAction) : runAction_(runAction) {}
 
-#include "G4Event.hh"
-
-EventAction::EventAction(TrackingAction* trackingAction)
-    : trackingAction_(trackingAction)
-{
-}
-
-void EventAction::BeginOfEventAction(const G4Event* event)
-{
-    if (trackingAction_ == nullptr || event == nullptr) {
-        return;
-    }
-
-    trackingAction_->SetCurrentEventID(event->GetEventID());
+void EventAction::EndOfEventAction(const G4Event*) {
+  if (runAction_ != nullptr) {
+    runAction_->FlushReducedHits();
+  }
 }

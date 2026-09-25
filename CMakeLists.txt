@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(G4Cosmic VERSION 0.5.0 LANGUAGES CXX)
+project(G4Cosmic VERSION 0.6.0 LANGUAGES CXX)
 
 # =============================================================================
 # C++ standard
@@ -70,6 +70,7 @@ endif()
 set(G4COSMIC_CORE_SOURCES
     src/ActionInitialization.cc
     src/Application.cc
+    src/EventAction.cc
     src/FrameworkDetectorConstruction.cc
     src/GenericSensitiveDetector.cc
     src/OutputConfig.cc

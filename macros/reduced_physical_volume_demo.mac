@@ -1,0 +1,6 @@
+# Demo: keep raw hit trees and add reduced trees grouped by physical volume.
+/g4cosmic/output/file reduced_physical_volume.root
+/g4cosmic/output/reducedHits true
+/g4cosmic/output/reduceBy physicalVolume
+/g4cosmic/source gun
+/run/beamOn 100

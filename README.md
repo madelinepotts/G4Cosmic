@@ -315,7 +315,7 @@ least one generated primary intersects a selected logical volume:
 /run/initialize
 /g4cosmic/source cry
 /g4cosmic/cry/acceptanceMode volume
-/g4cosmic/cry/acceptanceVolume *ScintillatorLV_*
+/g4cosmic/cry/acceptanceVolume ScintillatorBarLV
 /g4cosmic/cry/maxAcceptanceTrials 10000
 /g4cosmic/cry/apply
 /run/beamOn 10000
@@ -400,4 +400,68 @@ primaries
 ├── x_m, y_m, z_m
 ├── momentum_unit_x, momentum_unit_y, momentum_unit_z
 └── px_MeV_c, py_MeV_c, pz_MeV_c
+```
+
+## Reduced hit trees
+
+By default, G4Cosmic writes the `primaries` tree and one raw hit tree per
+registered sensitive logical volume. Raw hit trees preserve Geant4 step-level
+truth.
+
+Reduced hit trees are optional and are disabled by default. Enable them from a
+macro:
+
+```text
+/g4cosmic/output/reducedHits true
+/g4cosmic/output/reduceBy copyNo
+```
+
+If the detector registers a sensitive logical volume named `det_bar`, raw hits
+are written to:
+
+```text
+det_bar
+```
+
+and reduced hits are written to:
+
+```text
+det_bar_reduced
+```
+
+Supported reduction modes are:
+
+```text
+copyNo
+particleCopyNo
+physicalVolume
+```
+
+`copyNo` groups hits by event and leaf copy number.
+
+`particleCopyNo` groups hits by event, PDG particle type, and leaf copy number.
+It keeps `pdg` and `particle_name` in the reduced row.
+
+`physicalVolume` groups hits by event, physical-volume name, and copy number.
+The copy number is included because repeated Geant4 placements can share the
+same physical-volume name.
+
+Each reduced tree contains:
+
+```text
+event_id
+reduction_mode
+copy_no
+pdg
+particle_name
+physical_volume
+logical_volume
+n_steps
+n_tracks
+total_edep_MeV
+first_time_ns
+last_time_ns
+edep_weighted_x_mm
+edep_weighted_y_mm
+edep_weighted_z_mm
 ```

@@ -9,6 +9,8 @@
 
 #include <cmath>
 #include <cctype>
+#include <limits>
+#include <sstream>
 #include <string>
 
 namespace {
@@ -51,6 +53,24 @@ void CreateHitColumns(G4AnalysisManager* a, G4int ntupleId) {
   a->CreateNtupleDColumn(ntupleId, "z_mm");
   a->CreateNtupleSColumn(ntupleId, "physical_volume");
   a->CreateNtupleSColumn(ntupleId, "logical_volume");
+}
+
+void CreateReducedHitColumns(G4AnalysisManager* a, G4int ntupleId) {
+  a->CreateNtupleIColumn(ntupleId, "event_id");
+  a->CreateNtupleSColumn(ntupleId, "reduction_mode");
+  a->CreateNtupleIColumn(ntupleId, "copy_no");
+  a->CreateNtupleIColumn(ntupleId, "pdg");
+  a->CreateNtupleSColumn(ntupleId, "particle_name");
+  a->CreateNtupleSColumn(ntupleId, "physical_volume");
+  a->CreateNtupleSColumn(ntupleId, "logical_volume");
+  a->CreateNtupleIColumn(ntupleId, "n_steps");
+  a->CreateNtupleIColumn(ntupleId, "n_tracks");
+  a->CreateNtupleDColumn(ntupleId, "total_edep_MeV");
+  a->CreateNtupleDColumn(ntupleId, "first_time_ns");
+  a->CreateNtupleDColumn(ntupleId, "last_time_ns");
+  a->CreateNtupleDColumn(ntupleId, "edep_weighted_x_mm");
+  a->CreateNtupleDColumn(ntupleId, "edep_weighted_y_mm");
+  a->CreateNtupleDColumn(ntupleId, "edep_weighted_z_mm");
 }
 
 }  // namespace
@@ -119,6 +139,37 @@ void RunAction::CreateSensitiveVolumeHitNtuples() {
   }
 }
 
+void RunAction::CreateReducedHitNtupleForLogicalVolume(const G4String& logicalVolumeName) {
+  if (logicalVolumeName.empty()) {
+    return;
+  }
+
+  if (reducedNtupleIdsByLogicalVolume_.find(logicalVolumeName) !=
+      reducedNtupleIdsByLogicalVolume_.end()) {
+    return;
+  }
+
+  auto* a = G4AnalysisManager::Instance();
+  const auto treeName = SanitizeNtupleName(logicalVolumeName) + "_reduced";
+  const auto ntupleId = a->CreateNtuple(
+      treeName,
+      "G4Cosmic reduced sensitive-volume hits for logical volume " +
+          logicalVolumeName);
+  CreateReducedHitColumns(a, ntupleId);
+  a->FinishNtuple(ntupleId);
+  reducedNtupleIdsByLogicalVolume_[logicalVolumeName] = ntupleId;
+}
+
+void RunAction::CreateReducedHitNtuples() {
+  if (!OutputConfig::GetWriteReducedHits()) {
+    return;
+  }
+
+  for (const auto& logicalVolumeName : OutputConfig::GetSensitiveVolumeNames()) {
+    CreateReducedHitNtupleForLogicalVolume(logicalVolumeName);
+  }
+}
+
 void RunAction::CreateTrackEndNtuple() {
   if (trackEndNtupleId_ >= 0) {
     return;
@@ -154,6 +205,7 @@ void RunAction::BeginOfRunAction(const G4Run*) {
   // volumes by this point, so create one hit tree per registered volume before
   // opening the output file.
   CreateSensitiveVolumeHitNtuples();
+  CreateReducedHitNtuples();
 
   if (OutputConfig::GetWriteTrackEnd()) {
     CreateTrackEndNtuple();
@@ -164,6 +216,7 @@ void RunAction::BeginOfRunAction(const G4Run*) {
 }
 
 void RunAction::EndOfRunAction(const G4Run*) {
+  FlushReducedHits();
   auto* a = G4AnalysisManager::Instance();
   a->Write();
   a->CloseFile();
@@ -194,6 +247,114 @@ void RunAction::WriteHit(const HitRecord& h) const {
   a->FillNtupleSColumn(ntupleId, 11, h.physicalVolumeName);
   a->FillNtupleSColumn(ntupleId, 12, h.logicalVolumeName);
   a->AddNtupleRow(ntupleId);
+
+  AccumulateReducedHit(h);
+}
+
+G4String RunAction::MakeReducedHitKey(const HitRecord& h) const {
+  const auto& mode = OutputConfig::GetReducedHitMode();
+  std::ostringstream key;
+
+  if (mode == "particleCopyNo") {
+    key << h.copyNo << "|" << h.pdg;
+    return key.str();
+  }
+
+  if (mode == "physicalVolume") {
+    key << h.physicalVolumeName << "|" << h.copyNo;
+    return key.str();
+  }
+
+  key << h.copyNo;
+  return key.str();
+}
+
+void RunAction::AccumulateReducedHit(const HitRecord& h) const {
+  if (!OutputConfig::GetWriteReducedHits()) {
+    return;
+  }
+
+  if (reducedNtupleIdsByLogicalVolume_.find(h.logicalVolumeName) ==
+      reducedNtupleIdsByLogicalVolume_.end()) {
+    return;
+  }
+
+  auto& reducedForVolume = reducedHitsByLogicalVolume_[h.logicalVolumeName];
+  auto& acc = reducedForVolume[MakeReducedHitKey(h)];
+
+  if (acc.nSteps == 0) {
+    acc.eventID = h.eventID;
+    acc.copyNo = h.copyNo;
+    acc.pdg = 0;
+    acc.particleName = "";
+    acc.physicalVolumeName = "";
+    acc.logicalVolumeName = h.logicalVolumeName;
+    acc.firstTime = h.time;
+    acc.lastTime = h.time;
+
+    const auto& mode = OutputConfig::GetReducedHitMode();
+    if (mode == "particleCopyNo") {
+      acc.pdg = h.pdg;
+      acc.particleName = h.particleName;
+    }
+    if (mode == "physicalVolume") {
+      acc.physicalVolumeName = h.physicalVolumeName;
+    }
+  }
+
+  acc.nSteps += 1;
+  acc.trackIDs.insert(h.trackID);
+  acc.totalEdep += h.edep;
+  acc.edepWeightedPositionSum += h.edep * h.position;
+  if (h.time < acc.firstTime) {
+    acc.firstTime = h.time;
+  }
+  if (h.time > acc.lastTime) {
+    acc.lastTime = h.time;
+  }
+}
+
+void RunAction::WriteReducedHitRow(G4int ntupleId, const ReducedHitAccumulator& acc) const {
+  auto* a = G4AnalysisManager::Instance();
+  const auto weightedPosition =
+      acc.totalEdep > 0.0 ? acc.edepWeightedPositionSum / acc.totalEdep : G4ThreeVector();
+
+  a->FillNtupleIColumn(ntupleId, 0, acc.eventID);
+  a->FillNtupleSColumn(ntupleId, 1, OutputConfig::GetReducedHitMode());
+  a->FillNtupleIColumn(ntupleId, 2, acc.copyNo);
+  a->FillNtupleIColumn(ntupleId, 3, acc.pdg);
+  a->FillNtupleSColumn(ntupleId, 4, acc.particleName);
+  a->FillNtupleSColumn(ntupleId, 5, acc.physicalVolumeName);
+  a->FillNtupleSColumn(ntupleId, 6, acc.logicalVolumeName);
+  a->FillNtupleIColumn(ntupleId, 7, acc.nSteps);
+  a->FillNtupleIColumn(ntupleId, 8, static_cast<G4int>(acc.trackIDs.size()));
+  a->FillNtupleDColumn(ntupleId, 9, acc.totalEdep / MeV);
+  a->FillNtupleDColumn(ntupleId, 10, acc.firstTime / ns);
+  a->FillNtupleDColumn(ntupleId, 11, acc.lastTime / ns);
+  a->FillNtupleDColumn(ntupleId, 12, weightedPosition.x() / mm);
+  a->FillNtupleDColumn(ntupleId, 13, weightedPosition.y() / mm);
+  a->FillNtupleDColumn(ntupleId, 14, weightedPosition.z() / mm);
+  a->AddNtupleRow(ntupleId);
+}
+
+void RunAction::FlushReducedHits() const {
+  if (!OutputConfig::GetWriteReducedHits()) {
+    reducedHitsByLogicalVolume_.clear();
+    return;
+  }
+
+  for (const auto& volumePair : reducedHitsByLogicalVolume_) {
+    const auto ntupleIt = reducedNtupleIdsByLogicalVolume_.find(volumePair.first);
+    if (ntupleIt == reducedNtupleIdsByLogicalVolume_.end()) {
+      continue;
+    }
+
+    for (const auto& hitPair : volumePair.second) {
+      WriteReducedHitRow(ntupleIt->second, hitPair.second);
+    }
+  }
+
+  reducedHitsByLogicalVolume_.clear();
 }
 
 void RunAction::WritePrimary(const PrimaryRecord& p) {
