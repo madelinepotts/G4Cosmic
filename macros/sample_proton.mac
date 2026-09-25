@@ -1,11 +1,13 @@
-# Balanced ML-development sample: single protons.
+# Balanced development sample: single protons sampled from the shared
+# scintillator-bar logical volume in the WarpTrack example.
 /g4cosmic/output/file sample_proton.root
 /g4cosmic/source sample
 /g4cosmic/sample/particle proton
 /g4cosmic/sample/minEnergy 50 MeV
 /g4cosmic/sample/maxEnergy 10 GeV
-/g4cosmic/sample/halfWidthX 200 mm
-/g4cosmic/sample/halfWidthY 400 mm
+/g4cosmic/sample/sourceVolume ScintillatorBarLV
+/g4cosmic/sample/maxPositionTrials 10000
+/g4cosmic/sample/positionMode volume
 /g4cosmic/sample/maxTheta 30 deg
 /g4cosmic/sample/logEnergy 1
 /run/beamOn 10000

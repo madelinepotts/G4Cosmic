@@ -1,0 +1,11 @@
+# Default CRY source-plane run.
+# This preserves the normal CRY plane source behavior.
+/g4cosmic/output/file cry_default_plane.root
+/g4cosmic/source cry
+/g4cosmic/cry/verbose 0
+/g4cosmic/cry/subboxLength 2
+/g4cosmic/cry/xoffset 0
+/g4cosmic/cry/yoffset 0
+/g4cosmic/cry/zoffset 0
+/g4cosmic/cry/apply
+/run/beamOn 10000
