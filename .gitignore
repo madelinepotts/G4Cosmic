@@ -28,6 +28,7 @@ CPackSourceConfig.cmake
 *.log
 *.out
 *.err
+*.json
 G4History.macro
 
 # Python cache
