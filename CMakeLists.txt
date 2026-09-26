@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(G4Cosmic VERSION 0.8.4 LANGUAGES CXX)
+project(G4Cosmic VERSION 0.9.0 LANGUAGES CXX)
 
 # =============================================================================
 # C++ standard
@@ -176,13 +176,10 @@ if(MSVC)
 endif()
 
 file(TO_CMAKE_PATH "${CRY_ROOT}/data" CRY_DATA_DIR_NORMALIZED)
-set(G4COSMIC_CRY_SETUP_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/cry/cry_setup.txt" CACHE FILEPATH "Path to the G4Cosmic CRY setup macro")
-file(TO_CMAKE_PATH "${G4COSMIC_CRY_SETUP_FILE}" CRY_SETUP_FILE_NORMALIZED)
 
 target_compile_definitions(g4cosmic_core
     PRIVATE
         G4COSMIC_CRY_DATA_DIR="${CRY_DATA_DIR_NORMALIZED}"
-        G4COSMIC_CRY_SETUP_FILE="${CRY_SETUP_FILE_NORMALIZED}"
 )
 
 # =============================================================================
@@ -197,17 +194,6 @@ function(g4cosmic_copy_runtime_files target_name)
                 "${CMAKE_CURRENT_SOURCE_DIR}/macros"
                 "$<TARGET_FILE_DIR:${target_name}>/macros"
         COMMENT "Copying Geant4 macros for ${target_name}"
-    )
-
-    add_custom_command(
-        TARGET ${target_name}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:${target_name}>/cry"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${G4COSMIC_CRY_SETUP_FILE}"
-                "$<TARGET_FILE_DIR:${target_name}>/cry/cry_setup.txt"
-        COMMENT "Copying CRY configuration for ${target_name}"
     )
 
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/corsika")
@@ -238,7 +224,7 @@ if(G4COSMIC_BUILD_EXAMPLES)
         )
     endif()
 
-    add_executable(g4cosmic
+    add_executable(g4cosmic_warptrack
         examples/WarpTrack/src/main.cc
         examples/WarpTrack/src/WarpTrackDetectorConstruction.cc
         examples/WarpTrack/src/WarpTrackSensitiveDetector.cc
@@ -247,19 +233,19 @@ if(G4COSMIC_BUILD_EXAMPLES)
         examples/WarpTrack/generated/DetectorGeometryGenerated.hh
     )
 
-    target_include_directories(g4cosmic
+    target_include_directories(g4cosmic_warptrack
         PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/examples/WarpTrack/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/examples/WarpTrack/generated"
     )
 
-    target_link_libraries(g4cosmic PRIVATE G4Cosmic::core)
+    target_link_libraries(g4cosmic_warptrack PRIVATE G4Cosmic::core)
 
     if(MSVC)
-        target_compile_options(g4cosmic PRIVATE /Zc:__cplusplus)
+        target_compile_options(g4cosmic_warptrack PRIVATE /Zc:__cplusplus)
     endif()
 
-    g4cosmic_copy_runtime_files(g4cosmic)
+    g4cosmic_copy_runtime_files(g4cosmic_warptrack)
 
     add_executable(g4cosmic_basic
         examples/BasicDetector/src/main.cc
@@ -319,5 +305,5 @@ message(STATUS "CRY root:                  ${CRY_ROOT}")
 message(STATUS "CRY data:                  ${CRY_ROOT}/data")
 message(STATUS "Geant4 version:            ${Geant4_VERSION}")
 if(G4COSMIC_BUILD_EXAMPLES)
-    message(STATUS "Examples:                  WarpTrack, BasicDetector")
+    message(STATUS "Examples:                  g4cosmic_warptrack, g4cosmic_basic")
 endif()

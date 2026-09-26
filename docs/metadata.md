@@ -24,7 +24,8 @@ The sidecar records generic run provenance:
 - git commit, branch, exact tag when available, and dirty state
 - macro SHA-256 fingerprint and cleaned command list
 - source metadata
-- optional detector/source metadata appended by downstream code
+- detector metadata, including the detector type and registered sensitive logical-volume names
+- optional user metadata appended by downstream code
 
 The macro section intentionally stores a fingerprint and command list, not raw macro text.
 
@@ -65,3 +66,6 @@ Source classes can append source-specific metadata by overriding:
 ```cpp
 void AppendMetadata(G4Cosmic::JsonWriter& json) const override;
 ```
+
+
+The bundled examples append detector metadata.  For example, the WarpTrack executable records `type: WarpTrack`, the generated geometry header path, hodoscope and channel counts, server-model status, and the registered sensitive logical-volume names.  The BasicDetector executable records `type: BasicDetector` and its sensitive logical-volume names.

@@ -1,7 +1,12 @@
 #include "RunAction.hh"
 #include "OutputConfig.hh"
 
+#include "G4Cosmic/Geant4Compat.hh"
+#if G4COSMIC_GEANT4_VERSION_NUMBER >= 1100
 #include "G4AnalysisManager.hh"
+#else
+#include "g4root.hh"
+#endif
 #include "G4ParticleDefinition.hh"
 #include "G4ParticleTable.hh"
 #include "G4SystemOfUnits.hh"
@@ -77,7 +82,9 @@ void CreateReducedHitColumns(G4AnalysisManager* a, G4int ntupleId) {
 
 RunAction::RunAction() {
   auto* a = G4AnalysisManager::Instance();
+#if G4COSMIC_GEANT4_VERSION_NUMBER >= 1100
   a->SetDefaultFileType("root");
+#endif
   a->SetVerboseLevel(0);
   a->SetNtupleMerging(true);
 

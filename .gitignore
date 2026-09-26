@@ -23,8 +23,9 @@ CTestTestfile.cmake
 CPackConfig.cmake
 CPackSourceConfig.cmake
 
-# ROOT / Geant4 outputs
+# ROOT / Geant4/G4Cosmic outputs
 *.root
+*.json
 *.log
 *.out
 *.err
@@ -51,6 +52,3 @@ external/corsika8/
 corsika_cache*.dat
 corsika_generated*.dat
 
-# Common generated G4Cosmic metadata sidecars
-/g4cosmic.json
-/corsika_*.json

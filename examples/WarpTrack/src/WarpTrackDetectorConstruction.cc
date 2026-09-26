@@ -1,5 +1,6 @@
 #include "WarpTrackDetectorConstruction.hh"
 #include "DetectorGeometryGenerated.hh"
+#include "G4Cosmic/JsonWriter.hh"
 #include "G4Box.hh"
 #include "G4Colour.hh"
 #include "G4ExtrudedSolid.hh"
@@ -330,6 +331,18 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
 
 G4VSensitiveDetector* DetectorConstruction::CreateSensitiveDetector() {
   return new SensitiveDetector("WarpTrackScintillatorSD");
+}
+
+void DetectorConstruction::AppendMetadata(G4Cosmic::JsonWriter& json) const {
+  json.Write("type", "WarpTrack");
+  json.Write("metadata_source", "detector_construction");
+  json.Write("geometry", "examples/WarpTrack/generated/DetectorGeometryGenerated.hh");
+  json.Write("hodoscope_count", static_cast<int>(hodoscopes.size()));
+  json.Write("channels_per_hodoscope", channelsPerHodoscope);
+  json.Write("bar_piece_count", static_cast<int>(pieces.size()));
+  json.Write("server_model_enabled", serverModelEnabled);
+  json.Write("server_count", static_cast<int>(servers.size()));
+  AppendSensitiveVolumeMetadata(json);
 }
 
 }  // namespace WarpTrackExample

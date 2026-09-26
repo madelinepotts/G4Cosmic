@@ -55,7 +55,7 @@ Required:
 
 - CMake 3.20 or newer
 - C++17 compiler
-- Geant4 11.x
+- Geant4 10.x or 11.x
 - CRY source and data files
 
 Optional:
@@ -63,7 +63,7 @@ Optional:
 - CORSIKA 8 or another external CORSIKA runner/wrapper for `/g4cosmic/corsika/generationMode batch`
 - Geant4 UI/visualization components when `G4COSMIC_ENABLE_UIVIS=ON`
 
-See [`docs/dependencies.md`](docs/dependencies.md) for the CRY and CORSIKA installation layout.
+See [`docs/dependencies.md`](docs/dependencies.md) for the CRY and CORSIKA installation layout. Geant4 10/11 compatibility is handled in compile-time compatibility guards, for example the analysis-manager header switches between `g4root.hh` for Geant4 10 and `G4AnalysisManager.hh` for Geant4 11.
 
 ## API documentation
 
@@ -152,7 +152,7 @@ cmake -S . -B build \
 WarpTrack example:
 
 ```powershell
-.\build\Release\g4cosmic.exe .\macros\quick.mac
+.\build\Release\g4cosmic_warptrack.exe .\macros\quick.mac
 ```
 
 Minimal generic detector example:
@@ -164,14 +164,14 @@ Minimal generic detector example:
 Set the Geant4 worker thread count as the second command-line argument:
 
 ```powershell
-.\build\Release\g4cosmic.exe .\macros\run.mac 16
+.\build\Release\g4cosmic_warptrack.exe .\macros\run.mac 16
 ```
 
 or with an environment variable:
 
 ```powershell
 $env:G4COSMIC_THREADS="16"
-.\build\Release\g4cosmic.exe .\macros\run.mac
+.\build\Release\g4cosmic_warptrack.exe .\macros\run.mac
 ```
 
 ## Writing detector geometry
@@ -192,6 +192,22 @@ G4VPhysicalVolume* MyDetector::BuildGeometry() {
 ```
 
 The framework writes one raw hit tree per registered sensitive logical volume. Multiple physical placements of the same logical volume share that tree; use `copy_no`, `physical_volume`, and `logical_volume` columns to distinguish placements.
+
+## Local regression test
+
+After building, run the bundled smoke/regression test suite. It does not require a real CORSIKA 8 installation; the CORSIKA 8 bridge is tested with the explicit toy fallback.
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test_local.ps1
+```
+
+Linux/macOS:
+
+```bash
+./scripts/test_local.sh
+```
 
 ## Source selection
 
@@ -334,7 +350,7 @@ corsika_batch.root
 corsika_batch.json
 ```
 
-The JSON records run provenance, including start/end time, duration, command line, working directory, thread count, output filename, build version, git commit/branch/tag/dirty state, macro SHA-256 fingerprints, cleaned macro command lists, and source metadata.
+The JSON records run provenance, including start/end time, duration, command line, working directory, thread count, output filename, build version, git commit/branch/tag/dirty state, macro SHA-256 fingerprints, cleaned macro command lists, source metadata, and detector metadata.
 
 To print the cleaned macro command list to the console, add:
 

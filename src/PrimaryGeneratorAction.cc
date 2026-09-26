@@ -4,7 +4,6 @@
 #include "G4Cosmic/CRYPrimaryGenerator.hh"
 #include "G4Cosmic/GunPrimaryGenerator.hh"
 #include "G4Cosmic/PrimaryGenerator.hh"
-#include "G4Cosmic/RunMetadata.hh"
 #include "G4Cosmic/SamplePrimaryGenerator.hh"
 
 #include "G4Event.hh"
@@ -87,14 +86,13 @@ void PrimaryGeneratorAction::SetSource(const G4String& source)
     sourceMode_ = source;
     activeGenerator_ = found->second.get();
 
-    if (IsMasterThread()) {
-        G4Cosmic::RunMetadata::Instance().SetSourceMetadataContributor(
-            [this](G4Cosmic::JsonWriter& json) {
-                if (activeGenerator_ != nullptr) {
-                    activeGenerator_->AppendMetadata(json);
-                }
-            });
-    }
+    // Do not register a metadata callback that captures this PrimaryGeneratorAction.
+    // In Geant4 MT runs the primary-generator actions are worker-owned, while the
+    // JSON sidecar is written on the application/master side after /run/beamOn.
+    // Keeping a callback to a worker action can become a dangling pointer on
+    // Windows and cause a hard process abort after the ROOT file is written.
+    // RunMetadata reconstructs source settings from the recorded macro commands
+    // instead, which is stable for both Geant4 10 and 11, serial and MT.
 }
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)

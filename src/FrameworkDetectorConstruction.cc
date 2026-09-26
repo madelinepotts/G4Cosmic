@@ -8,11 +8,31 @@
 #include "G4SDManager.hh"
 #include "G4VSensitiveDetector.hh"
 
+#include <set>
+#include <string>
+
 namespace G4Cosmic {
 
 
 void DetectorConstruction::AppendMetadata(JsonWriter& json) const {
-  json.Write("base", "G4Cosmic::DetectorConstruction");
+  json.Write("type", "G4Cosmic::DetectorConstruction");
+  json.Write("metadata_source", "detector_construction");
+  AppendSensitiveVolumeMetadata(json);
+}
+
+void DetectorConstruction::AppendSensitiveVolumeMetadata(JsonWriter& json) const {
+  std::set<std::string> names;
+  for (const auto* volume : sensitiveVolumes_) {
+    if (volume != nullptr) {
+      names.insert(volume->GetName());
+    }
+  }
+
+  json.BeginArray("sensitive_logical_volumes");
+  for (const auto& name : names) {
+    json.WriteValue(name);
+  }
+  json.EndArray();
 }
 
 G4VPhysicalVolume* DetectorConstruction::Construct() {

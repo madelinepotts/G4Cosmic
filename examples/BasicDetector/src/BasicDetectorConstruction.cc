@@ -1,6 +1,7 @@
 #include "BasicDetectorConstruction.hh"
 
 #include "G4Box.hh"
+#include "G4Cosmic/JsonWriter.hh"
 #include "G4Colour.hh"
 #include "G4LogicalVolume.hh"
 #include "G4Material.hh"
@@ -61,6 +62,13 @@ G4VPhysicalVolume* DetectorConstruction::BuildGeometry() {
   RegisterSensitiveVolume(detectorLV);
 
   return worldPV;
+}
+
+void DetectorConstruction::AppendMetadata(G4Cosmic::JsonWriter& json) const {
+  json.Write("type", "BasicDetector");
+  json.Write("metadata_source", "detector_construction");
+  json.Write("geometry", "examples/BasicDetector");
+  AppendSensitiveVolumeMetadata(json);
 }
 
 }  // namespace BasicDetectorExample

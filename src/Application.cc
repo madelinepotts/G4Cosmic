@@ -5,10 +5,11 @@
 #include "OutputMessenger.hh"
 #include "G4Cosmic/DetectorConstruction.hh"
 #include "G4Cosmic/RunMetadata.hh"
+#include "G4Cosmic/Geant4Compat.hh"
 
 #include "FTFP_BERT.hh"
 #include "G4VModularPhysicsList.hh"
-#include "G4RunManagerFactory.hh"
+#include "G4RunManager.hh"
 #include "G4VUserDetectorConstruction.hh"
 #include "G4UImanager.hh"
 #include "G4EmParameters.hh"
@@ -52,17 +53,18 @@ int Application::Run(int argc, char** argv) const {
   OutputMessenger outputMessenger;
 
 #ifdef G4MULTITHREADED
-  auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::MT);
-  auto* mt = dynamic_cast<G4MTRunManager*>(runManager);
+  auto* runManager = new G4MTRunManager();
   const int threads = RequestedThreads(argc, argv);
-  if (mt != nullptr) mt->SetNumberOfThreads(threads);
+  runManager->SetNumberOfThreads(threads);
+  const int metadataThreads = threads;
   std::cout << "G4Cosmic Geant4 worker threads: " << threads << '\n';
 #else
-  auto* runManager = G4RunManagerFactory::CreateRunManager(G4RunManagerType::Serial);
+  auto* runManager = new G4RunManager();
+  const int metadataThreads = 1;
   std::cout << "G4Cosmic: Geant4 was built without multithreading; using serial mode.\n";
 #endif
 
-  G4Cosmic::RunMetadata::Instance().Begin(argc, argv, RequestedThreads(argc, argv));
+  G4Cosmic::RunMetadata::Instance().Begin(argc, argv, metadataThreads);
   if (argc > 1) {
     G4Cosmic::RunMetadata::Instance().SetMacroFile(argv[1]);
   }
@@ -82,7 +84,9 @@ int Application::Run(int argc, char** argv) const {
   }
   runManager->SetUserInitialization(detector);
   G4EmParameters::Instance()->SetVerbose(0);
+#if G4COSMIC_GEANT4_VERSION_NUMBER >= 1100
   G4EmParameters::Instance()->SetWorkerVerbose(0);
+#endif
 
   auto* physicsList = new FTFP_BERT();
   physicsList->SetVerboseLevel(0);
@@ -105,7 +109,7 @@ int Application::Run(int argc, char** argv) const {
 #else
     std::cerr
         << "G4Cosmic was built with G4COSMIC_ENABLE_UIVIS=OFF. "
-        << "Run with a macro file, for example: g4cosmic macros/quick.mac\n";
+        << "Run with a macro file, for example: g4cosmic_warptrack macros/quick.mac\n";
     delete runManager;
     return 1;
 #endif

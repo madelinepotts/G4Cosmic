@@ -7,7 +7,10 @@ scripts/
 ├── install_cry.ps1
 ├── install_cry.sh
 ├── install_corsika8.ps1
-└── install_corsika8.sh
+├── install_corsika8.sh
+├── install_corsika8_wsl.ps1
+├── test_local.ps1
+└── test_local.sh
 
 external/
 ├── README.md
@@ -43,13 +46,11 @@ CMake builds CRY directly from `external/cry/src/*.cc`. If CRY already exists el
 cmake -S . -B build -DCRY_ROOT=/path/to/cry
 ```
 
-The CRY runtime setup file owned by G4Cosmic lives at:
+G4Cosmic configures CRY from macro commands that mirror CRY's native setup keys under `/g4cosmic/cry/...`.  The file below is kept as a readable reference/example of the equivalent native CRY setup, not as the normal runtime control path:
 
 ```text
 config/cry/cry_setup.txt
 ```
-
-That file is copied beside the example executables at build time.
 
 ## CORSIKA 8
 
@@ -63,10 +64,16 @@ external/corsika8/build
 external/corsika8/install
 ```
 
-Install from the repository root on Windows:
+Stage source from the repository root on Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install_corsika8.ps1
+```
+
+On Windows, real CORSIKA 8 execution is expected to happen through WSL/Linux/container/cluster wrappers unless the upstream CORSIKA tree supports your native toolchain.  The WSL helper is:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_corsika8_wsl.ps1 -StageOnly
 ```
 
 Install on Linux or macOS:
@@ -81,7 +88,8 @@ The bundled CORSIKA demo files live under:
 ```text
 examples/corsika/
 ├── example_particles.dat
-└── demo_external_corsika_runner.py
+├── demo_external_corsika_runner.py
+└── corsika8_runner.py
 ```
 
 `demo_external_corsika_runner.py` is a toy runner used to test G4Cosmic plumbing. Replace it with a real CORSIKA 8 wrapper/converter when doing physical shower production.

@@ -60,35 +60,6 @@ double CryRandom()
     return G4UniformRand();
 }
 
-std::string ReadTextFile(const std::string& path)
-{
-    std::ifstream input(path);
-
-    if (!input) {
-        throw std::runtime_error(
-            "Unable to open CRY setup file: " + path);
-    }
-
-    std::ostringstream buffer;
-    std::string line;
-
-    while (std::getline(input, line)) {
-        const auto first =
-            line.find_first_not_of(" \t\r\n");
-
-        // Ignore blank lines and comments.
-        if (first == std::string::npos ||
-            line[first] == '#') {
-            continue;
-        }
-
-        // CRYSetup tokenizes using a literal space,
-        // so join configuration lines using spaces.
-        buffer << line << ' ';
-    }
-
-    return buffer.str();
-}
 
 bool RayIntersectsBox(const G4ThreeVector& origin,
                       const G4ThreeVector& direction,
@@ -437,9 +408,9 @@ void CRYPrimaryGenerator::ApplyConfiguration()
 
 void CRYPrimaryGenerator::InitializeCRY()
 {
-    // The macro-facing settings are authoritative.  cry_setup.txt remains a
-    // readable record of the default configuration, while macros can override
-    // the same values without editing files or starting the visualizer.
+    // The macro-facing settings are authoritative.  They use the native CRY
+    // setup keys under the /g4cosmic/cry/ namespace, then this method turns
+    // those macro values into the CRY setup string.
     const std::string setupText = BuildSetupText();
 
     cryGenerator_.reset();

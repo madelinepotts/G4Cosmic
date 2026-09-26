@@ -43,6 +43,7 @@ protected:
   virtual G4VSensitiveDetector* CreateSensitiveDetector();
 
   void RegisterSensitiveVolume(G4LogicalVolume* volume);
+  void AppendSensitiveVolumeMetadata(JsonWriter& json) const;
 
 private:
   std::vector<G4LogicalVolume*> sensitiveVolumes_;
